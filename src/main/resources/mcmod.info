@@ -1,15 +1,21 @@
-[
 {
-  "modid": "coretweaks",
-  "name": "CoreTweaks",
-  "description": "A bunch of random bug fixes, optimizations and tweaks",
-  "version": "${version}",
-  "mcversion": "${minecraft_version}",
-  "url": "",
-  "updateUrl": "",
-  "authorList": ["makamys"],
-  "logoFile": "",
-  "screenshots": [],
-  "dependencies": []
+	"modListVersion": 2,
+	"modList": [{
+		"modid": "${modId}",
+		"name": "${modName}",
+		"description": "A bunch of random bug fixes, optimizations and tweaks",
+		"version": "${modVersion}",
+		"mcversion": "${minecraftVersion}",
+		"url": "",
+		"updateUrl": "",
+		"authorList": ["makamys"],
+		"credits": "",
+		"logoFile": "",
+		"screenshots": [],
+		"parent": "",
+		"requiredMods": [],
+		"dependencies": [],
+		"dependants": [],
+		"useDependencyInformation": false
+	}]
 }
-]

@@ -16,7 +16,6 @@ import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppedEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent;
 import cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent;
 import makamys.coretweaks.bugfix.DoubleEatFixer;
 import makamys.coretweaks.command.CoreTweaksCommand;
@@ -25,7 +24,6 @@ import makamys.coretweaks.optimization.ClientChunkMap;
 import makamys.coretweaks.optimization.JarDiscovererCache;
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache;
 import makamys.coretweaks.tweak.LoadLastWorldButton;
-import makamys.coretweaks.tweak.crashhandler.Crasher;
 import makamys.coretweaks.util.KeyboardUtil;
 import makamys.mclib.core.MCLib;
 import makamys.mclib.core.MCLibModules;
@@ -67,7 +65,7 @@ public class CoreTweaksMod
     
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        MCLibModules.updateCheckAPI.submitModTask(CoreTweaks.MODID, "@UPDATE_URL@");
+        MCLibModules.updateCheckAPI.submitModTask(CoreTweaks.MODID, "https://raw.githubusercontent.com/makamys/GTNewHorizons/master/updatejson/update.json");
         
         listeners.forEach(l -> l.onPreInit(event));
     }
