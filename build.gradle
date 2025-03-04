@@ -1,0 +1,10 @@
+
+plugins {
+    id("com.gtnewhorizons.gtnhconvention")
+}
+
+tasks.shadowJar {
+    relocate("makamys.mclib", "makamys.coretweaks.repackage.makamys.mclib")
+    relocate("net.sf.cglib", "makamys.coretweaks.repackage.net.sf.cglib")
+    relocate("com.esotericsoftware.kryo", "makamys.coretweaks.repackage.com.esotericsoftware.kryo")
+}
