@@ -3,6 +3,15 @@ plugins {
     id("com.gtnewhorizons.gtnhconvention")
 }
 
+tasks.jar {
+    manifest {
+        attributes(
+            'MixinConfigs': 'coretweaks.mixin.json,coretweaks-init.mixin.json,coretweaks-preinit.mixin.json',
+            'TweakOrder': '0'
+        )
+    }
+}
+
 tasks.shadowJar {
     relocate("makamys.mclib", "makamys.coretweaks.repackage.makamys.mclib")
     relocate("net.sf.cglib", "makamys.coretweaks.repackage.net.sf.cglib")

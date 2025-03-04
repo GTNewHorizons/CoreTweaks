@@ -2,7 +2,7 @@
     "required": true,
     "minVersion": "0.6",
     "package": "makamys.coretweaks.mixin",
-    "refmap": "coretweaks.mixin.refmap.json",
+    "refmap": "mixins.coretweaks.refmap.json",
     "compatibilityLevel": "JAVA_8",
     "mixins": [
 
