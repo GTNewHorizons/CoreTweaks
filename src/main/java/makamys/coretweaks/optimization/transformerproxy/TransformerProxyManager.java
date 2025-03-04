@@ -38,6 +38,7 @@ public class TransformerProxyManager implements AdditionEventListener<IClassTran
             
             Field transformersField = LaunchClassLoader.class.getDeclaredField("transformers");
             transformersField.setAccessible(true);
+            @SuppressWarnings("unchecked")
             List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
             
             // replace existing elements
@@ -62,6 +63,7 @@ public class TransformerProxyManager implements AdditionEventListener<IClassTran
         }
     }
     
+    @SuppressWarnings("unchecked")
     private IClassTransformer createCachedProxy(IClassTransformer transformer, boolean onlyFirst) {
         IClassTransformer realTransformer = transformer;
         while(realTransformer instanceof IWrapper<?>) {

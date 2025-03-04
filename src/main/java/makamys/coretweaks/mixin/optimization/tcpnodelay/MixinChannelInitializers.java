@@ -6,6 +6,7 @@ import org.spongepowered.asm.mixin.injection.ModifyArg;
 
 import io.netty.channel.ChannelInitializer;
 
+@SuppressWarnings("rawtypes")
 @Mixin(targets = {"net.minecraft.network.NetworkSystem$1", "net.minecraft.network.NetworkManager$2", "net.minecraft.client.network.OldServerPinger$2"}, remap = false)
 public abstract class MixinChannelInitializers extends ChannelInitializer {
     

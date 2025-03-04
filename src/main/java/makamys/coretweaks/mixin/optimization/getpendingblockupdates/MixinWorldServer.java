@@ -24,6 +24,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 import makamys.coretweaks.ducks.optimization.IPendingBlockUpdatesWorldServer;
 import makamys.coretweaks.optimization.ChunkPendingBlockUpdateMap;
+
 import net.minecraft.world.ChunkCoordIntPair;
 import net.minecraft.world.NextTickListEntry;
 import net.minecraft.world.WorldServer;
@@ -33,12 +34,12 @@ import net.minecraft.world.chunk.Chunk;
 abstract class MixinWorldServer implements IPendingBlockUpdatesWorldServer {
     
     @Shadow
-    private Set pendingTickListEntriesHashSet;
+    private Set<NextTickListEntry> pendingTickListEntriesHashSet;
     /** All work to do in future ticks. */
     @Shadow
-    private TreeSet pendingTickListEntriesTreeSet;
+    private TreeSet<NextTickListEntry> pendingTickListEntriesTreeSet;
     @Shadow
-    private List pendingTickListEntriesThisTick;
+    private List<NextTickListEntry> pendingTickListEntriesThisTick;
     @Shadow
     @Final
     static private Logger logger;
@@ -52,13 +53,13 @@ abstract class MixinWorldServer implements IPendingBlockUpdatesWorldServer {
     }
     
     @Redirect(method = {"scheduleBlockUpdateWithPriority", "func_147446_b"}, at = @At(value = "INVOKE", target = "Ljava/util/TreeSet;add(Ljava/lang/Object;)Z", remap = false))
-    public boolean redirectAdd(TreeSet set, Object o) {
+    public boolean redirectAdd(TreeSet<Object> set, Object o) {
         ChunkPendingBlockUpdateMap.add(this, (NextTickListEntry)o);
         return set.add(o);
     }
     
     @Redirect(method = {"tickUpdates"}, at = @At(value = "INVOKE", target = "Ljava/util/TreeSet;remove(Ljava/lang/Object;)Z", remap = false))
-    public boolean redirectRemove(TreeSet set, Object o) {
+    public boolean redirectRemove(TreeSet<Object> set, Object o) {
         ChunkPendingBlockUpdateMap.remove(this, (NextTickListEntry)o);
         return set.remove(o);
     }
@@ -67,10 +68,11 @@ abstract class MixinWorldServer implements IPendingBlockUpdatesWorldServer {
      * @author makamys
      * @reason Use map instead of iterating over the full contents of pendingTickListEntriesTreeSet for more fastness.
      * */
+    @SuppressWarnings("unchecked")
     @Overwrite
-    public List getPendingBlockUpdates(Chunk p_72920_1_, boolean p_72920_2_)
+    public List<NextTickListEntry> getPendingBlockUpdates(Chunk p_72920_1_, boolean p_72920_2_)
     {
-        ArrayList arraylist = null;
+        ArrayList<NextTickListEntry> arraylist = null;
         ChunkCoordIntPair chunkcoordintpair = p_72920_1_.getChunkCoordIntPair();
         int i = (chunkcoordintpair.chunkXPos << 4) - 2;
         int j = i + 16 + 2;
@@ -101,7 +103,7 @@ abstract class MixinWorldServer implements IPendingBlockUpdatesWorldServer {
     
                                 if (arraylist == null)
                                 {
-                                    arraylist = new ArrayList();
+                                    arraylist = new ArrayList<>();
                                 }
     
                                 arraylist.add(nte);
@@ -132,7 +134,7 @@ abstract class MixinWorldServer implements IPendingBlockUpdatesWorldServer {
                 }
             }
             
-            Iterator iterator;
+            Iterator<NextTickListEntry> iterator;
 
             if (i1 == 0)
             {
@@ -162,7 +164,7 @@ abstract class MixinWorldServer implements IPendingBlockUpdatesWorldServer {
 
                     if (arraylist == null)
                     {
-                        arraylist = new ArrayList();
+                        arraylist = new ArrayList<>();
                     }
 
                     arraylist.add(nextticklistentry);

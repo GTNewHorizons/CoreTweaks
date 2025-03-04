@@ -23,31 +23,31 @@ import net.minecraft.launchwrapper.LaunchClassLoader;
  * </ul>
  */ 
 
-public class WrappedTransformerList<T> implements List<T> {
-    public List<T> original;
+public class WrappedTransformerList<E> implements List<E> {
+    public List<E> original;
     
-    public T alt;
+    public E alt;
     
-    public WrappedTransformerList(List<T> original){
+    public WrappedTransformerList(List<E> original){
         this.original = original;
     }
     @Override
-    public boolean add(T e) {
+    public boolean add(E e) {
         return original.add(e);
     }
 
     @Override
-    public void add(int index, T element) {
+    public void add(int index, E element) {
         original.add(index, element);
     }
 
     @Override
-    public boolean addAll(Collection<? extends T> c) {
+    public boolean addAll(Collection<? extends E> c) {
         return addAll(size(), c);
     }
 
     @Override
-    public boolean addAll(int index, Collection<? extends T> c) {
+    public boolean addAll(int index, Collection<? extends E> c) {
         return original.addAll(c);
     }
 
@@ -67,7 +67,7 @@ public class WrappedTransformerList<T> implements List<T> {
     }
 
     @Override
-    public T get(int index) throws IndexOutOfBoundsException {
+    public E get(int index) throws IndexOutOfBoundsException {
         return original.get(index);
     }
 
@@ -82,7 +82,7 @@ public class WrappedTransformerList<T> implements List<T> {
     }
 
     @Override
-    public Iterator<T> iterator() {
+    public Iterator<E> iterator() {
         return listIterator();
     }
 
@@ -92,12 +92,12 @@ public class WrappedTransformerList<T> implements List<T> {
     }
 
     @Override
-    public ListIterator<T> listIterator() {
+    public ListIterator<E> listIterator() {
         return listIterator(0);
     }
 
     @Override
-    public ListIterator<T> listIterator(int index) {
+    public ListIterator<E> listIterator(int index) {
         boolean first = true;
         
         if(CachingTransformer.DEBUG_PRINT) {
@@ -116,7 +116,7 @@ public class WrappedTransformerList<T> implements List<T> {
         if(alt == null) {
             return original.listIterator(index);
         } else {
-            List<T> list = new ArrayList<T>(1);
+            List<E> list = new ArrayList<E>(1);
             list.add(alt);
             return list.listIterator(index);
         }
@@ -128,7 +128,7 @@ public class WrappedTransformerList<T> implements List<T> {
     }
 
     @Override
-    public T remove(int index) {
+    public E remove(int index) {
         return original.remove(index);
     }
 
@@ -143,7 +143,7 @@ public class WrappedTransformerList<T> implements List<T> {
     }
 
     @Override
-    public T set(int index, T element) {
+    public E set(int index, E element) {
         return original.set(index, element);
     }
 
@@ -153,7 +153,7 @@ public class WrappedTransformerList<T> implements List<T> {
     }
 
     @Override
-    public List<T> subList(int fromIndex, int toIndex) {
+    public List<E> subList(int fromIndex, int toIndex) {
         return original.subList(fromIndex, toIndex);
     }
 

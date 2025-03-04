@@ -22,7 +22,7 @@ public class MixinDataWatcher {
     @Shadow
     private @Final Entity field_151511_a;
     @Shadow
-    private @Final Map watchedObjects;
+    private @Final Map<Integer, DataWatcher.WatchableObject> watchedObjects;
     
     @Inject(method = "addObject", at = @At("HEAD"))
     public void monitorObjectAddition(int id, Object object, CallbackInfo ci) {

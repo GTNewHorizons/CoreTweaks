@@ -18,6 +18,8 @@ import java.util.concurrent.LinkedBlockingQueue;
 
 import cpw.mods.fml.common.eventhandler.SubscribeEvent;
 import makamys.coretweaks.mixin.optimization.threadedtextureloader.ITextureMap;
+
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.util.ResourceLocation;
@@ -146,14 +148,14 @@ public class ThreadedTextureLoader {
         lastStreamedResource = res;
     }
     
-    public void addSpriteLoadJobs(Map mapRegisteredSprites, ITextureMap itx) {
-        Iterator<Entry> iterator = itx.mapRegisteredSprites().entrySet().iterator();
+    public void addSpriteLoadJobs(Map<String, TextureAtlasSprite> mapRegisteredSprites, ITextureMap itx) {
+        Iterator<Entry<String, TextureAtlasSprite>> iterator = itx.mapRegisteredSprites().entrySet().iterator();
         
         while(iterator.hasNext()) {
             try {
-                Entry entry = iterator.next();
+                Entry<String, TextureAtlasSprite> entry = iterator.next();
                 
-                ResourceLocation resLoc = new ResourceLocation((String)entry.getKey());
+                ResourceLocation resLoc = new ResourceLocation(entry.getKey());
                 resLoc = itx.callCompleteResourceLocation(resLoc, 0);
                 
                 // if we reuse resources, this happens:

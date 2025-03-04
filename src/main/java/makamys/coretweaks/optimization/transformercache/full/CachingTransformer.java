@@ -346,6 +346,7 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
             
             Field transformersField = LaunchClassLoader.class.getDeclaredField("transformers");
             transformersField.setAccessible(true);
+            @SuppressWarnings("unchecked")
             List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
             
             WrappedTransformerList<IClassTransformer> wrappedTransformers = 
@@ -356,6 +357,7 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
             
             Field cachedClassesField = LaunchClassLoader.class.getDeclaredField("cachedClasses");
             cachedClassesField.setAccessible(true);
+            @SuppressWarnings("unchecked")
             Map<String, Class<?>> cachedClasses = (Map<String, Class<?>>)cachedClassesField.get(lcl);
             //cachedClasses.clear(); // gotta do this to make Mixin happy
             

@@ -5,6 +5,7 @@ import static makamys.coretweaks.CoreTweaks.LOGGER;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.List;
 import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
@@ -34,7 +35,7 @@ abstract class MixinJarDiscoverer implements INetHandlerPlayClient {
     
     /** Load the saved result if the jar's path and modification date haven't changed. */
     @Inject(method = "discover", at = @At("HEAD"))
-    public void preDiscover(ModCandidate candidate, ASMDataTable table, CallbackInfoReturnable cir) {
+    public void preDiscover(ModCandidate candidate, ASMDataTable table, CallbackInfoReturnable<List<ModContainer>> cir) {
         String hash = null;
         File file = candidate.getModContainer();
         hash = file.getPath() + "@" + file.lastModified();

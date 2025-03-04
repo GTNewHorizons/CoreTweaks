@@ -50,7 +50,6 @@ public class MobCapHandler {
     }
 
     // We could also hook EntityRegistry#addSpawn but this feels safer
-    @SuppressWarnings("unchecked")
     private static EnumCreatureType computeSpawnType(Entity entity) {
         int[] counts = new int[EnumCreatureType.values().length];
         for(BiomeGenBase biome : BiomeGenBase.getBiomeGenArray()) {
@@ -100,7 +99,6 @@ public class MobCapHandler {
         return types;
     }
     
-    @SuppressWarnings("unchecked")
     private static boolean vanillaIsCreatureType(Entity entity, EnumCreatureType type) {
         return type.getCreatureClass().isAssignableFrom(entity.getClass());
     }

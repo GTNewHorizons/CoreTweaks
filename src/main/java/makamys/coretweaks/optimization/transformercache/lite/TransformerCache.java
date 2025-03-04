@@ -110,6 +110,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         }
     }
 
+    @SuppressWarnings("unchecked")
     private void loadData() {
         long t0 = System.nanoTime();
         
