@@ -1,37 +1,19 @@
-/** The root of the build. Exposed for flexibility, but you shouldn't edit it
-    unless you have to. Edit project.gradle instead. */
-
-buildscript {
-    repositories {
-        mavenCentral()
-        gradlePluginPortal() // this line has to be after mavenCentral() or ForgeGradle breaks apart
-        maven {
-            name = "forge"
-            url = "https://maven.minecraftforge.net/"
-        }
-        maven {
-            url = "https://jitpack.io"
-        }
-    }
-    dependencies {
-        classpath('com.github.GTNewHorizons:ForgeGradle:1.2.11') {
-            // This transitive dependency breaks plugins for some reason. Only GTNH-FG has this issue.
-            exclude group: "org.eclipse.equinox"
-        }
-        classpath 'com.github.jengelman.gradle.plugins:shadow:4.0.2'
-    }
-}
 
 plugins {
-    id 'java-library'
-    id 'maven-publish'
+    id("com.gtnewhorizons.gtnhconvention")
 }
 
-if(project.enable_lombok.toBoolean()) {
-    dependencies {
-        compileOnly 'org.projectlombok:lombok:1.18.4'
+tasks.jar {
+    manifest {
+        attributes(
+            'MixinConfigs': 'coretweaks.mixin.json,coretweaks-init.mixin.json,coretweaks-preinit.mixin.json',
+            'TweakOrder': '0'
+        )
     }
 }
 
-apply plugin: "com.github.johnrengelman.shadow"
-apply from: "buildscript/forge-1.7.gradle"
+tasks.shadowJar {
+    relocate("makamys.mclib", "makamys.coretweaks.repackage.makamys.mclib")
+    relocate("net.sf.cglib", "makamys.coretweaks.repackage.net.sf.cglib")
+    relocate("com.esotericsoftware.kryo", "makamys.coretweaks.repackage.com.esotericsoftware.kryo")
+}

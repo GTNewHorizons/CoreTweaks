@@ -5,6 +5,7 @@ import static makamys.coretweaks.CoreTweaks.LOGGER;
 import java.util.Map;
 
 import org.apache.commons.lang3.exception.ExceptionUtils;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Shadow;
 import org.spongepowered.asm.mixin.injection.At;
@@ -19,9 +20,9 @@ import net.minecraft.entity.Entity;
 @Mixin(DataWatcher.class)
 public class MixinDataWatcher {
     @Shadow
-    private Entity field_151511_a;
+    private @Final Entity field_151511_a;
     @Shadow
-    private Map watchedObjects;
+    private @Final Map<Integer, DataWatcher.WatchableObject> watchedObjects;
     
     @Inject(method = "addObject", at = @At("HEAD"))
     public void monitorObjectAddition(int id, Object object, CallbackInfo ci) {

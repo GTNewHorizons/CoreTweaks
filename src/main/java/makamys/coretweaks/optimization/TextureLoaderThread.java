@@ -81,11 +81,11 @@ class TextureLoaderThread extends Thread {
     }
     
     private void notifyIfWaitingOn(Object o) {
-        synchronized(parent.waitingOn) {
-            if(!parent.waitingOn.isEmpty()) {
-                ResourceLoadJob job = parent.waitingOn.get(0);
+        synchronized(ThreadedTextureLoader.waitingOn) {
+            if(!ThreadedTextureLoader.waitingOn.isEmpty()) {
+                ResourceLoadJob job = ThreadedTextureLoader.waitingOn.get(0);
                 if(o.equals(job.resource.orElse(null)) || o.equals(job.resourceLocation.orElse(null))) {
-                    parent.waitingOn.notify();
+                    ThreadedTextureLoader.waitingOn.notify();
                 }
             }
         }

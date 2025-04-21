@@ -25,6 +25,7 @@ public class LoadLastWorldButton implements IModEventListener {
         MinecraftForge.EVENT_BUS.register(this);
     }
     
+    @SuppressWarnings("unchecked")
     @SubscribeEvent
     public void onGui(InitGuiEvent.Post event) {
         if(event.gui instanceof GuiMainMenu) {

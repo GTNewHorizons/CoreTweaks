@@ -18,6 +18,7 @@ import makamys.coretweaks.util.GLUtil;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.RenderGlobal;
 import net.minecraft.client.renderer.Tessellator;
+import net.minecraft.client.renderer.WorldRenderer;
 import net.minecraft.crash.CrashReport;
 
 public class CrashHandler {
@@ -59,7 +60,7 @@ public class CrashHandler {
         
         try {
             if(Minecraft.getMinecraft().renderGlobal != null) {
-                List renderersToUpdate = ReflectionHelper.getPrivateValue(RenderGlobal.class, Minecraft.getMinecraft().renderGlobal, "worldRenderersToUpdate", "field_72767_j");
+                List<WorldRenderer> renderersToUpdate = ReflectionHelper.getPrivateValue(RenderGlobal.class, Minecraft.getMinecraft().renderGlobal, "worldRenderersToUpdate", "field_72767_j");
                 renderersToUpdate.clear();
             }
         } catch(UnableToAccessFieldException e) {

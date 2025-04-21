@@ -1,36 +1,38 @@
-# mac os
-.DS_Store
-
-# forge / gradle
 .gradle
-build/
-out/
-classes/
-run/
-.factorypath
-
-# eclipse 
-*.launch
 .settings
+/.idea/
+/.vscode/
+/run/
+/build/
+/eclipse/
 .classpath
 .project
-.metadata
-eclipse
-*.launch
-
-# idea
-.idea/
+/bin/
+/config/
+/crash-reports/
+/logs/
+options.txt
+/saves/
+usernamecache.json
+banned-ips.json
+banned-players.json
+eula.txt
+ops.json
+server.properties
+servers.dat
+usercache.json
+whitelist.json
+/out/
 *.iml
 *.ipr
 *.iws
-
-# vscode
-.settings/
-.vscode/
-bin/
-.classpath
-
-# other
-bin/
-jars/
-/.nb-gradle/
+src/main/resources/mixins.*([!.]).json
+*.bat
+*.DS_Store
+!gradlew.bat
+.factorypath
+addon.local.gradle
+addon.local.gradle.kts
+addon.late.local.gradle
+addon.late.local.gradle.kts
+layout.json

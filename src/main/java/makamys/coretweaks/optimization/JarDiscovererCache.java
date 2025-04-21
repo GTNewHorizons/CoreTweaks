@@ -59,6 +59,7 @@ public class JarDiscovererCache implements IModEventListener {
     
     private Kryo kryo;
     
+    @SuppressWarnings("unchecked")
     public void load() {
         LOGGER.info("Loading JarDiscovererCache");
         long t0 = System.nanoTime();

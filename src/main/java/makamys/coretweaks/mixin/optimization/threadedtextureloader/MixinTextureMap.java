@@ -13,6 +13,8 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Redirect;
 
 import makamys.coretweaks.CoreTweaks;
+
+import net.minecraft.client.renderer.texture.TextureAtlasSprite;
 import net.minecraft.client.renderer.texture.TextureMap;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.client.resources.IResourceManager;
@@ -21,7 +23,7 @@ import net.minecraft.util.ResourceLocation;
 @Mixin(TextureMap.class)
 public abstract class MixinTextureMap {
     @Shadow
-    Map mapRegisteredSprites;
+    Map<String, TextureAtlasSprite> mapRegisteredSprites;
     
     @Redirect(method = "loadTextureAtlas(Lnet/minecraft/client/resources/IResourceManager;)V", 
             at = @At(value = "INVOKE", target = "Ljavax/imageio/ImageIO;read(Ljava/io/InputStream;)Ljava/awt/image/BufferedImage;", remap = false))
