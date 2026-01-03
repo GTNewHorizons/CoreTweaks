@@ -3,6 +3,14 @@ package makamys.coretweaks;
 import java.util.ArrayList;
 import java.util.List;
 
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ChunkProviderClient;
+import net.minecraft.client.multiplayer.WorldClient;
+import net.minecraft.entity.Entity;
+import net.minecraft.util.LongHashMap;
+import net.minecraft.world.chunk.IChunkProvider;
+import net.minecraftforge.client.ClientCommandHandler;
+
 import cpw.mods.fml.common.FMLCommonHandler;
 import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
@@ -26,18 +34,10 @@ import makamys.coretweaks.optimization.transformercache.lite.TransformerCache;
 import makamys.coretweaks.tweak.LoadLastWorldButton;
 import makamys.coretweaks.util.KeyboardUtil;
 import makamys.mclib.core.MCLib;
-import makamys.mclib.core.MCLibModules;
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ChunkProviderClient;
-import net.minecraft.client.multiplayer.WorldClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.LongHashMap;
-import net.minecraft.world.chunk.IChunkProvider;
-import net.minecraftforge.client.ClientCommandHandler;
 
 @Mod(modid = CoreTweaks.MODID, version = CoreTweaks.VERSION)
-public class CoreTweaksMod
-{
+public class CoreTweaksMod {
+
     private static List<IModEventListener> listeners = new ArrayList<>();
 
     @EventHandler
@@ -46,19 +46,22 @@ public class CoreTweaksMod
 
         Config.reload();
 
-        Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
-            @Override
-            public void run() {
-                listeners.forEach(l -> l.onShutdown());
-            }}, "CoreTweaks shutdown thread"));
+        Runtime.getRuntime()
+            .addShutdownHook(new Thread(new Runnable() {
 
-        if(Config.transformerCache.isActive() && Config.transformerCacheMode == Config.TransformerCache.LITE) {
+                @Override
+                public void run() {
+                    listeners.forEach(l -> l.onShutdown());
+                }
+            }, "CoreTweaks shutdown thread"));
+
+        if (Config.transformerCache.isActive() && Config.transformerCacheMode == Config.TransformerCache.LITE) {
             registerListener(TransformerCache.instance);
         }
-        if(Config.jarDiscovererCache.isActive()) {
+        if (Config.jarDiscovererCache.isActive()) {
             registerListener(JarDiscovererCache.instance);
         }
-        if(Config.mainMenuContinueButton.isActive()) {
+        if (Config.mainMenuContinueButton.isActive()) {
             registerListener(LoadLastWorldButton.instance = new LoadLastWorldButton());
         }
     }
@@ -70,16 +73,22 @@ public class CoreTweaksMod
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
-        FMLCommonHandler.instance().bus().register(this);
+        FMLCommonHandler.instance()
+            .bus()
+            .register(this);
 
-        if(Config.coreTweaksCommand.isActive()) {
+        if (Config.coreTweaksCommand.isActive()) {
             ClientCommandHandler.instance.registerCommand(new CoreTweaksCommand());
         }
-        if(CoreTweaks.textureLoader != null) {
-            FMLCommonHandler.instance().bus().register(CoreTweaks.textureLoader);
+        if (CoreTweaks.textureLoader != null) {
+            FMLCommonHandler.instance()
+                .bus()
+                .register(CoreTweaks.textureLoader);
         }
-        if(Config.fixDoubleEat.isActive()) {
-            FMLCommonHandler.instance().bus().register(new DoubleEatFixer());
+        if (Config.fixDoubleEat.isActive()) {
+            FMLCommonHandler.instance()
+                .bus()
+                .register(new DoubleEatFixer());
         }
 
         listeners.forEach(l -> l.onInit(event));
@@ -118,16 +127,16 @@ public class CoreTweaksMod
 
     @SubscribeEvent
     public void onClientTick(ClientTickEvent event) {
-        if(Config.clientChunkMap.isActive()) {
+        if (Config.clientChunkMap.isActive()) {
             WorldClient world = Minecraft.getMinecraft().theWorld;
-            if(world != null) {
+            if (world != null) {
                 IChunkProvider provider = world.getChunkProvider();
-                if(provider != null && provider instanceof ChunkProviderClient) {
-                    ChunkProviderClient cp = (ChunkProviderClient)provider;
-                    LongHashMap cm = ((IChunkProviderClient)cp).getChunkMapping();
-                    if(cm instanceof ClientChunkMap) {
+                if (provider != null && provider instanceof ChunkProviderClient) {
+                    ChunkProviderClient cp = (ChunkProviderClient) provider;
+                    LongHashMap cm = ((IChunkProviderClient) cp).getChunkMapping();
+                    if (cm instanceof ClientChunkMap) {
                         Entity player = Minecraft.getMinecraft().renderViewEntity;
-                        ((ClientChunkMap) cm).setCenter(((int)player.posX / 16), ((int)player.posZ / 16));
+                        ((ClientChunkMap) cm).setCenter(((int) player.posX / 16), ((int) player.posZ / 16));
                     }
                 }
             }

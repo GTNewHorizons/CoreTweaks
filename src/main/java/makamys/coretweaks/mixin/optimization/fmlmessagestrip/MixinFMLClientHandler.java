@@ -7,10 +7,11 @@ import cpw.mods.fml.client.FMLClientHandler;
 
 @Mixin(FMLClientHandler.class)
 abstract class MixinFMLClientHandler {
+
     /**
      * @author makamys
      * @reason Make startup faster.
-     * */
+     */
     @Overwrite(remap = false)
     public String stripSpecialChars(String message) {
         return message;

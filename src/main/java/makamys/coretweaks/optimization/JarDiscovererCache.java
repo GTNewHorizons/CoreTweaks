@@ -42,23 +42,23 @@ import makamys.coretweaks.util.Util;
  * Map<String, CachedModInfo> cache
  */
 public class JarDiscovererCache implements IModEventListener {
-    
+
     public static JarDiscovererCache instance;
-    
+
     private boolean hasLoaded;
-    
+
     private Map<String, CachedModInfo> cache = new HashMap<>();
     private int epoch;
-    
+
     private final byte MAGIC_0 = 0;
     private final byte VERSION = 2;
-    
+
     private final File DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "jarDiscovererCache.dat");
     private final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "jarDiscoverer.cache");
     private final File DAT_ERRORED = Util.childFile(CoreTweaks.CACHE_DIR, "jarDiscoverer.cache.errored");
-    
+
     private Kryo kryo;
-    
+
     @SuppressWarnings("unchecked")
     public void load() {
         LOGGER.info("Loading JarDiscovererCache");
@@ -84,77 +84,87 @@ public class JarDiscovererCache implements IModEventListener {
         kryo.register(java.util.LinkedList.class);
         kryo.register(classForNameOrException("cpw.mods.fml.common.discovery.asm.ASMModParser$AnnotationType"));
         kryo.register(java.util.ArrayList.class);
-        
-        if(DAT_OLD.exists() && !DAT.exists()) {
+
+        if (DAT_OLD.exists() && !DAT.exists()) {
             LOGGER.info("Migrating jar discoverer cache: " + DAT_OLD + " -> " + DAT);
             DAT_OLD.renameTo(DAT);
         }
-        
-        if(DAT.exists()) {
-            try(Input is = new UnsafeInput(new BufferedInputStream(new FileInputStream(DAT)))) {
+
+        if (DAT.exists()) {
+            try (Input is = new UnsafeInput(new BufferedInputStream(new FileInputStream(DAT)))) {
                 byte magic0 = kryo.readObject(is, byte.class);
                 byte version = kryo.readObject(is, byte.class);
                 epoch = kryo.readObject(is, int.class);
                 epoch++;
-                
-                if(magic0 != MAGIC_0 || version != VERSION) {
-                    CoreTweaks.LOGGER.warn("Jar discoverer cache is either a different version or corrupted, discarding.");
+
+                if (magic0 != MAGIC_0 || version != VERSION) {
+                    CoreTweaks.LOGGER
+                        .warn("Jar discoverer cache is either a different version or corrupted, discarding.");
                 } else {
                     cache = returnVerifiedMap(kryo.readObject(is, HashMap.class));
                 }
             } catch (Exception e) {
-                CoreTweaks.LOGGER.error("There was an error reading the jar discoverer cache. A new one will be created. The previous one has been saved as " + DAT_ERRORED.getName() + " for inspection.");
+                CoreTweaks.LOGGER.error(
+                    "There was an error reading the jar discoverer cache. A new one will be created. The previous one has been saved as "
+                        + DAT_ERRORED.getName()
+                        + " for inspection.");
                 DAT.renameTo(DAT_ERRORED);
                 e.printStackTrace();
                 cache.clear();
                 epoch = 0;
             }
             long t1 = System.nanoTime();
-            LOGGER.debug("Loaded jar discoverer cache with " + cache.size() + " entries in " + (t1-t0) / 1_000_000_000.0 + "s");
+            LOGGER.debug(
+                "Loaded jar discoverer cache with " + cache.size()
+                    + " entries in "
+                    + (t1 - t0) / 1_000_000_000.0
+                    + "s");
         } else {
             long t1 = System.nanoTime();
-            LOGGER.debug("Created new jar discoverer cache in " + (t1-t0) / 1_000_000_000.0 + "s");
+            LOGGER.debug("Created new jar discoverer cache in " + (t1 - t0) / 1_000_000_000.0 + "s");
         }
-        
+
         hasLoaded = true;
     }
-    
+
     private static Class<?> classForNameOrException(String string) {
         try {
             return Class.forName(string);
-        } catch(ClassNotFoundException e) {
+        } catch (ClassNotFoundException e) {
             throw new RuntimeException(e);
         }
     }
 
     private Map<String, CachedModInfo> returnVerifiedMap(Map<String, CachedModInfo> map) {
-        if(map.containsKey(null)) {
+        if (map.containsKey(null)) {
             throw new RuntimeException("Map contains null key");
         }
-        if(map.containsValue(null)) {
+        if (map.containsValue(null)) {
             throw new RuntimeException("Map contains null value");
         }
         return map;
     }
-    
+
     @Override
     public void onPostInit(FMLPostInitializationEvent event) {
         finish();
     }
-    
+
     public void finish() {
-        if(!cache.isEmpty()) {
+        if (!cache.isEmpty()) {
             new Thread(new Runnable() {
 
                 @Override
                 public void run() {
                     try {
-                        if(!DAT.exists()) {
-                            DAT.getParentFile().mkdirs();
+                        if (!DAT.exists()) {
+                            DAT.getParentFile()
+                                .mkdirs();
                             DAT.createNewFile();
                         }
-                        cache.entrySet().removeIf(e -> (epoch - e.getValue().lastAccessed) > Config.jarDiscovererCacheMaxAge);
-                        try(Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
+                        cache.entrySet()
+                            .removeIf(e -> (epoch - e.getValue().lastAccessed) > Config.jarDiscovererCacheMaxAge);
+                        try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
                             kryo.writeObject(output, MAGIC_0);
                             kryo.writeObject(output, VERSION);
                             kryo.writeObject(output, epoch);
@@ -166,68 +176,69 @@ public class JarDiscovererCache implements IModEventListener {
                     }
                     cache = null;
                 }
-                
+
             }, "CoreTweaks JarDiscovererCache save thread").start();
         }
     }
-    
+
     public CachedModInfo getCachedModInfo(String hash) {
-        if(!hasLoaded) {
+        if (!hasLoaded) {
             load();
         }
         CachedModInfo cmi = cache.get(hash);
-        if(cmi == null) {
+        if (cmi == null) {
             cmi = new CachedModInfo(true);
             cache.put(hash, cmi);
         }
         cmi.lastAccessed = epoch;
         return cmi;
     }
-    
+
     public static class CachedModInfo {
-        
+
         Map<String, ASMModParser> parserMap = new HashMap<>();
         Set<String> modClasses = new HashSet<>();
         int lastAccessed;
         transient boolean dirty;
-        
+
         public CachedModInfo(boolean dirty) {
             this.dirty = dirty;
         }
-        
+
         public CachedModInfo() {
             this(false);
         }
-        
+
         public ASMModParser getCachedParser(ZipEntry ze) {
             return parserMap.get(ze.getName());
         }
-        
+
         public void putParser(ZipEntry ze, ASMModParser parser) {
             parserMap.put(ze.getName(), parser);
         }
-        
+
         public int getCachedIsModClass(ZipEntry ze) {
-            return dirty ? -1 : modClasses.contains(ze.getName()) ? 1 : 0; 
+            return dirty ? -1 : modClasses.contains(ze.getName()) ? 1 : 0;
         }
-        
+
         public void putIsModClass(ZipEntry ze, boolean value) {
-            if(!dirty) {
+            if (!dirty) {
                 throw new IllegalStateException();
             }
-            
-            if(value) {
+
+            if (value) {
                 modClasses.add(ze.getName());
             }
         }
     }
-    
+
     /** Much more compact than FieldSerializer */
     public static class TypeSerializer extends Serializer<Type> {
+
         @Override
         public void write(Kryo kryo, Output output, Type type) {
             output.writeByte(type.getSort());
-            if(type.getSort() >= Type.ARRAY) {
+            if (type.getSort() >= Type.ARRAY) {
                 output.writeString(type.getInternalName());
             }
         }
@@ -236,7 +247,7 @@ public class JarDiscovererCache implements IModEventListener {
         public Type read(Kryo kryo, Input input, Class<? extends Type> type) {
             int sort = input.readByte();
             String buf = sort >= Type.ARRAY ? input.readString() : null;
-            switch(sort) {
+            switch (sort) {
                 case Type.VOID:
                     return Type.VOID_TYPE;
                 case Type.BOOLEAN:

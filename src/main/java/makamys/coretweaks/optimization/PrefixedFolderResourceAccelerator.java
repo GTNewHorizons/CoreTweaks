@@ -12,39 +12,40 @@ import java.util.Map;
 
 public class PrefixedFolderResourceAccelerator {
 
-    private static final boolean DEBUG = Boolean.parseBoolean(System.getProperty("coretweaks.debugPrefixedFolderResourceAccelerator", "false"));
-    
+    private static final boolean DEBUG = Boolean
+        .parseBoolean(System.getProperty("coretweaks.debugPrefixedFolderResourceAccelerator", "false"));
+
     private Map<String, Boolean> directoryExists = new HashMap<>();
 
     private File home;
-    
+
     public PrefixedFolderResourceAccelerator(File homeFolder) {
         this.home = homeFolder;
-        
+
         directoryExists.put(homeFolder.getPath(), true);
     }
-    
+
     private boolean directoryExists(File directory) {
         String path = directory.getPath();
         Boolean cached = directoryExists.get(path);
-        if(cached != null) {
+        if (cached != null) {
             return cached;
         }
-        
+
         boolean exists = false;
-        
+
         boolean parentExists = directoryExists(directory.getParentFile());
-        if(parentExists) {
+        if (parentExists) {
             exists = directory.isDirectory();
         }
-        
+
         directoryExists.put(path, exists);
-        
+
         return exists;
     }
 
     private boolean computeIsFile(File file) {
-        if(directoryExists(file.getParentFile())) {
+        if (directoryExists(file.getParentFile())) {
             return file.isFile();
         } else {
             return false;
@@ -53,24 +54,31 @@ public class PrefixedFolderResourceAccelerator {
 
     public boolean isFile(File file) {
         // Only look for resource if directory exists...
-        
-        if(!file.getPath().startsWith(home.getPath())) {
+
+        if (!file.getPath()
+            .startsWith(home.getPath())) {
             throw new IllegalArgumentException("Argument must start with " + home.getPath());
         }
-        
+
         boolean vanillaResult = false;
-        if(DEBUG) {
+        if (DEBUG) {
             vanillaResult = file.isFile();
         }
-        
+
         boolean result = computeIsFile(file);
-        
-        if(DEBUG) {
-            if(vanillaResult != result) {
-                LOGGER.error("Mismatch detected in FolderResourcePack optimization! (path=" + file.getPath() + ", vanillaResult=" + vanillaResult + ", result=" + result + ") Please report the issue and disable the option (`fast_folder_resource_pack`) for now.");
+
+        if (DEBUG) {
+            if (vanillaResult != result) {
+                LOGGER.error(
+                    "Mismatch detected in FolderResourcePack optimization! (path=" + file.getPath()
+                        + ", vanillaResult="
+                        + vanillaResult
+                        + ", result="
+                        + result
+                        + ") Please report the issue and disable the option (`fast_folder_resource_pack`) for now.");
             }
         }
-        
+
         return result;
     }
 

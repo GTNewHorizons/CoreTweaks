@@ -6,11 +6,13 @@ import java.util.List;
 import java.util.ListIterator;
 
 public class WrappedList<T> implements List<T> {
+
     protected final List<T> o;
+
     public WrappedList(List<T> original) {
         this.o = original;
     }
-    
+
     @Override
     public int size() {
         return o.size();

@@ -25,6 +25,10 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.LinkedBlockingQueue;
 import java.util.stream.Collectors;
 
+import net.minecraft.launchwrapper.IClassTransformer;
+import net.minecraft.launchwrapper.Launch;
+import net.minecraft.launchwrapper.LaunchClassLoader;
+
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.io.Files;
@@ -35,36 +39,34 @@ import makamys.coretweaks.Persistence;
 import makamys.coretweaks.util.Util;
 import makamys.coretweaks.util.WrappedAddListenableMap;
 import makamys.coretweaks.util.WrappedAddListenableMap.MapAddListener;
-import net.minecraft.launchwrapper.IClassTransformer;
-import net.minecraft.launchwrapper.Launch;
-import net.minecraft.launchwrapper.LaunchClassLoader;
 
 /**
  * This transformer takes the place of the entire transformer chain. The first time a class is loaded,
  * it runs it through the other transformers, and saves the result. On following occasions, it simply
- * returns the already cached class, with the goal of speeding up load times.<br><br>
+ * returns the already cached class, with the goal of speeding up load times.<br>
+ * <br>
  * 
- * It works by replacing the LaunchClassLoader's transformer list with a {@link WrappedTransformerList}. 
+ * It works by replacing the LaunchClassLoader's transformer list with a {@link WrappedTransformerList}.
  */
 public class CachingTransformer implements IClassTransformer, MapAddListener<String, Class<?>> {
-    
+
     // TODO can't this be compressed into a lambda?
-    
+
     static class SaveThread extends Thread {
-        
+
         private CachingTransformer cacheTransformer;
-        
+
         private int saveInterval = 10000;
-        
+
         public SaveThread(CachingTransformer ct) {
             this.cacheTransformer = ct;
             setName("CacheTransformer save thread");
             setDaemon(false);
         }
-        
+
         @Override
         public void run() {
-            while(true) {
+            while (true) {
                 try {
                     Thread.sleep(saveInterval);
                 } catch (InterruptedException e) {
@@ -75,112 +77,125 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
             }
         }
     }
-    
+
     private WrappedTransformerList<IClassTransformer> wrappedTransformers;
     private WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses;
-    
+
     private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
     private final static int QUEUE_SIZE = Config.recentCacheSize;
-    Optional<Cache<String, byte[]>> recentCache = QUEUE_SIZE < 0 ? Optional.empty() :
-        Optional.of(CacheBuilder.newBuilder().maximumSize(QUEUE_SIZE).build());
-    
+    Optional<Cache<String, byte[]>> recentCache = QUEUE_SIZE < 0 ? Optional.empty()
+        : Optional.of(
+            CacheBuilder.newBuilder()
+                .maximumSize(QUEUE_SIZE)
+                .build());
+
     private SaveThread saveThread = new SaveThread(this);
-    
-    private Set<String> badTransformers = 
-            new HashSet<>(Arrays.stream(Config.badTransformers.split(",")).collect(Collectors.toList()));
-    private Set<String> badClasses = 
-            new HashSet<>(Arrays.stream(Config.badClasses.split(",")).collect(Collectors.toList()));
-    
+
+    private Set<String> badTransformers = new HashSet<>(
+        Arrays.stream(Config.badTransformers.split(","))
+            .collect(Collectors.toList()));
+    private Set<String> badClasses = new HashSet<>(
+        Arrays.stream(Config.badClasses.split(","))
+            .collect(Collectors.toList()));
+
     public static final boolean DEBUG_PRINT = Config.verbosity == 2;
     private static boolean printSave = Config.verbosity >= 1;
-    
+
     private int lastSaveSize = 0;
     private BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
-    
+
     private static final File CLASS_CACHE_DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "classCache.dat");
     private static final File CLASS_CACHE_DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerFull.cache");
-    private static final File CLASS_CACHE_DAT_ERRORED = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerFull.cache.errored");
+    private static final File CLASS_CACHE_DAT_ERRORED = Util
+        .childFile(CoreTweaks.CACHE_DIR, "classTransformerFull.cache.errored");
     private static final File CLASS_CACHE_DAT_TMP = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerFull.cache~");
-    
-    private static final boolean FORCE_REBUILD_CACHE = Boolean.parseBoolean(System.getProperty("coretweaks.transformerCache.full.forceRebuild", "false"));
-    
-    public CachingTransformer(List<IClassTransformer> transformers, WrappedTransformerList<IClassTransformer> wrappedTransformers, WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses) {
+
+    private static final boolean FORCE_REBUILD_CACHE = Boolean
+        .parseBoolean(System.getProperty("coretweaks.transformerCache.full.forceRebuild", "false"));
+
+    public CachingTransformer(List<IClassTransformer> transformers,
+        WrappedTransformerList<IClassTransformer> wrappedTransformers,
+        WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses) {
         LOGGER.info("Initializing cache transformer");
-        
+
         this.wrappedTransformers = wrappedTransformers;
         this.wrappedCachedClasses = wrappedCachedClasses;
         wrappedCachedClasses.addListener(this);
-        
-        if(FORCE_REBUILD_CACHE || Persistence.modsChanged()) {
+
+        if (FORCE_REBUILD_CACHE || Persistence.modsChanged()) {
             clearCache(FORCE_REBUILD_CACHE ? "forceRebuild JVM flag was set." : "mods have changed.");
         } else {
             loadCache();
         }
         saveThread.start();
     }
-    
+
     private void clearCache(String reason) {
         LOGGER.info("Rebuilding class cache, because " + reason);
         CLASS_CACHE_DAT.delete();
         Persistence.erroredClassesLog.clear();
     }
-    
+
     public void doSave() {
         saveCache();
         Persistence.erroredClassesLog.flush();
         Persistence.debugLog.flush();
     }
-    
+
     private void loadCache() {
         File inFile = CLASS_CACHE_DAT;
-        
-        if(CLASS_CACHE_DAT_OLD.exists() && !CLASS_CACHE_DAT.exists()) {
+
+        if (CLASS_CACHE_DAT_OLD.exists() && !CLASS_CACHE_DAT.exists()) {
             LOGGER.info("Migrating class cache: " + CLASS_CACHE_DAT_OLD + " -> " + CLASS_CACHE_DAT);
             CLASS_CACHE_DAT_OLD.renameTo(CLASS_CACHE_DAT);
         }
-        
-        if(inFile.exists()) {
+
+        if (inFile.exists()) {
             LOGGER.info("Loading class cache.");
             cache.clear();
-            
-            try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(inFile)))){
+
+            try (DataInputStream in = new DataInputStream(new BufferedInputStream(new FileInputStream(inFile)))) {
                 try {
-                    while(true) { // EOFException should break the loop
+                    while (true) { // EOFException should break the loop
                         String className = in.readUTF();
                         int classLength = in.readInt();
                         byte[] classData = new byte[classLength];
                         int bytesRead = in.read(classData, 0, classLength);
-                        
-                        if(bytesRead != classLength) {
-                            throw new RuntimeException("Length of " + className + " doesn't match advertised length of " + classLength);
+
+                        if (bytesRead != classLength) {
+                            throw new RuntimeException(
+                                "Length of " + className + " doesn't match advertised length of " + classLength);
                         } else {
                             cache.put(className, Optional.of(classData));
-                            
+
                             superDebug("Loaded " + className);
                         }
                     }
-                } catch(EOFException eof) {}
+                } catch (EOFException eof) {}
             } catch (Exception e) {
-                CoreTweaks.LOGGER.error("There was an error reading the transformer cache. A new one will be created. The previous one has been saved as " + CLASS_CACHE_DAT_ERRORED.getName() + " for inspection.");
+                CoreTweaks.LOGGER.error(
+                    "There was an error reading the transformer cache. A new one will be created. The previous one has been saved as "
+                        + CLASS_CACHE_DAT_ERRORED.getName()
+                        + " for inspection.");
                 CLASS_CACHE_DAT.renameTo(CLASS_CACHE_DAT_ERRORED);
                 e.printStackTrace();
                 cache.clear();
             }
             LOGGER.info("Loaded " + cache.size() + " cached classes.");
-            
+
             lastSaveSize = cache.size();
         } else {
             LOGGER.info("Couldn't find class cache file");
         }
     }
-    
+
     private void saveCacheFully() {
         File outFile = CLASS_CACHE_DAT;
         File outFileTmp = CLASS_CACHE_DAT_TMP;
-        
+
         LOGGER.info("Performing full save of class cache (size: " + cache.size() + ")");
         saveCacheChunk(cache.keySet(), outFileTmp, false);
-        
+
         try {
             Files.move(outFileTmp, outFile);
         } catch (IOException e) {
@@ -188,12 +203,12 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
             e.printStackTrace();
         }
     }
-    
+
     private void saveCache() {
-        if(dirtyClasses.isEmpty()) {
+        if (dirtyClasses.isEmpty()) {
             return; // don't save if the cache hasn't changed
         }
-        
+
         File outFile = CLASS_CACHE_DAT;
         try {
             outFile.createNewFile();
@@ -201,29 +216,36 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
             // TODO Auto-generated catch block
             e1.printStackTrace();
         }
-        
+
         List<String> classesToSave = new ArrayList<String>();
         dirtyClasses.drainTo(classesToSave);
-        
-        if(printSave) {
-            LOGGER.info("Saving class cache (size: " + lastSaveSize + " -> " + cache.size() + " | +" + classesToSave.size() + ")");
+
+        if (printSave) {
+            LOGGER.info(
+                "Saving class cache (size: " + lastSaveSize
+                    + " -> "
+                    + cache.size()
+                    + " | +"
+                    + classesToSave.size()
+                    + ")");
         }
         saveCacheChunk(classesToSave, outFile, true);
-        
+
         lastSaveSize += classesToSave.size();
     }
-    
+
     private void saveCacheChunk(Collection<String> classesToSave, File outFile, boolean append) {
-        try(DataOutputStream out = new DataOutputStream(new BufferedOutputStream(new FileOutputStream(outFile, append)))){
-            for(String name : classesToSave) {
+        try (DataOutputStream out = new DataOutputStream(
+            new BufferedOutputStream(new FileOutputStream(outFile, append)))) {
+            for (String name : classesToSave) {
                 Optional<byte[]> data = cache.get(name);
-                if(data != null && data.isPresent()) {
+                if (data != null && data.isPresent()) {
                     out.writeUTF(name);
                     out.writeInt(data.get().length);
                     out.write(data.get());
                 }
             }
-            if(printSave) {
+            if (printSave) {
                 LOGGER.info("Saved class cache");
             }
         } catch (IOException e) {
@@ -232,143 +254,169 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
             e.printStackTrace();
         }
     }
-    
+
     private String describeBytecode(byte[] basicClass) {
-        return basicClass == null ? "null" : String.format("length: %d, hash: %x", basicClass.length, basicClass.hashCode());
+        return basicClass == null ? "null"
+            : String.format("length: %d, hash: %x", basicClass.length, basicClass.hashCode());
     }
-    
+
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
         byte[] result = null;
-        
-        superDebug(String.format("Starting loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
-        
+
+        superDebug(
+            String.format("Starting loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
+
         try {
             boolean dontCache = false;
-            for(String badPrefix : badClasses) {
-                if(transformedName.startsWith(badPrefix)){
+            for (String badPrefix : badClasses) {
+                if (transformedName.startsWith(badPrefix)) {
                     dontCache = true;
                     break;
                 }
             }
-            
-            if(cache.containsKey(transformedName) && !dontCache) {
+
+            if (cache.containsKey(transformedName) && !dontCache) {
                 superDebug("Yay, we have it cached!");
-                
-                if(cache.get(transformedName).isPresent()) { // we still remember it
-                    result = cache.get(transformedName).get();
-                    
-                    if(recentCache.isPresent()) {
+
+                if (cache.get(transformedName)
+                    .isPresent()) { // we still remember it
+                    result = cache.get(transformedName)
+                        .get();
+
+                    if (recentCache.isPresent()) {
                         // classes are only loaded once, so no need to keep it around in RAM
                         cache.put(transformedName, Optional.empty());
-                        
+
                         // but keep it around in case it's needed again by another transformer in the chain
-                        recentCache.get().put(transformedName, result);
+                        recentCache.get()
+                            .put(transformedName, result);
                     }
-                } else if(recentCache.isPresent()){ // we have forgotten it, hopefully it's still around in the recent queue
-                    result = recentCache.get().getIfPresent(transformedName);
-                    if(result == null) {
-                        LOGGER.warn("Couldn't find " + transformedName + " in cache. Is recent queue too small? (" + QUEUE_SIZE + ")");
+                } else if (recentCache.isPresent()) { // we have forgotten it, hopefully it's still around in the recent
+                                                      // queue
+                    result = recentCache.get()
+                        .getIfPresent(transformedName);
+                    if (result == null) {
+                        LOGGER.warn(
+                            "Couldn't find " + transformedName
+                                + " in cache. Is recent queue too small? ("
+                                + QUEUE_SIZE
+                                + ")");
                     }
                 }
             }
-            if(result == null){
+            if (result == null) {
                 // fall back to normal behavior..
                 for (final IClassTransformer transformer : wrappedTransformers.original) {
-                    if(transformer == this) {
+                    if (transformer == this) {
                         LOGGER.info("oops,");
                     }
-                    
 
-                    if(isBadTransformer(transformer)) {
+                    if (isBadTransformer(transformer)) {
                         wrappedTransformers.alt = null; // Hide from the view of conflicting transformers
                     }
-                    
-                    superDebug(String.format("Before transformer: %s (%s)", transformer.getClass().getName(), describeBytecode(basicClass)));
+
+                    superDebug(
+                        String.format(
+                            "Before transformer: %s (%s)",
+                            transformer.getClass()
+                                .getName(),
+                            describeBytecode(basicClass)));
                     basicClass = transformer.transform(name, transformedName, basicClass);
-                    superDebug(String.format("After transformer: %s (%s)", transformer.getClass().getName(), describeBytecode(basicClass)));
-                    
-                    if(wrappedTransformers.alt == null) {
+                    superDebug(
+                        String.format(
+                            "After transformer: %s (%s)",
+                            transformer.getClass()
+                                .getName(),
+                            describeBytecode(basicClass)));
+
+                    if (wrappedTransformers.alt == null) {
                         wrappedTransformers.alt = this; // reappear
                     }
                 }
-                if(basicClass != null && !dontCache) {
+                if (basicClass != null && !dontCache) {
                     cache.put(transformedName, Optional.of(basicClass)); // then cache it
                     dirtyClasses.add(transformedName);
                 }
                 result = basicClass;
             }
-            if(result != null && recentCache.isPresent() && !dontCache) {
-                recentCache.get().put(transformedName, result);
+            if (result != null && recentCache.isPresent() && !dontCache) {
+                recentCache.get()
+                    .put(transformedName, result);
             }
-        } catch(Exception e) {
-            if(DEBUG_PRINT) {
-                Persistence.erroredClassesLog.write(transformedName + " / " + e.getClass().getName() + " / " + e.getMessage());
+        } catch (Exception e) {
+            if (DEBUG_PRINT) {
+                Persistence.erroredClassesLog.write(
+                    transformedName + " / "
+                        + e.getClass()
+                            .getName()
+                        + " / "
+                        + e.getMessage());
             }
             throw e; // pass it to LaunchClassLoader, who will handle it
         } finally {
             wrappedTransformers.alt = this;
         }
 
-        superDebug(String.format("Finished loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
+        superDebug(
+            String.format("Finished loading class %s (%s) (%s)", name, transformedName, describeBytecode(basicClass)));
         return result;
     }
-    
+
     private boolean isBadTransformer(IClassTransformer transformer) {
-        for(String badPattern : badTransformers) {
-            if(badPattern.endsWith("+")) {
-                Class<?> baseClass = wrappedCachedClasses
-                        .get(badPattern.substring(0, badPattern.length() - 1));
-                if(baseClass != null && baseClass.isInstance(transformer)) {
+        for (String badPattern : badTransformers) {
+            if (badPattern.endsWith("+")) {
+                Class<?> baseClass = wrappedCachedClasses.get(badPattern.substring(0, badPattern.length() - 1));
+                if (baseClass != null && baseClass.isInstance(transformer)) {
                     return true;
                 }
             } else {
-                if(badPattern.contentEquals(transformer.getClass().getName())) {
+                if (badPattern.contentEquals(
+                    transformer.getClass()
+                        .getName())) {
                     return true;
                 }
             }
         }
         return false;
     }
-        
+
     private void superDebug(String msg) {
-        if(DEBUG_PRINT) {
+        if (DEBUG_PRINT) {
             LOGGER.trace(msg);
             Persistence.debugLog.write(msg);
         }
     }
-    
+
     public static CachingTransformer register() {
         CachingTransformer cacheTransformer = null;
         try {
-            LaunchClassLoader lcl = (LaunchClassLoader)Launch.classLoader;
-            
-            
+            LaunchClassLoader lcl = (LaunchClassLoader) Launch.classLoader;
+
             Field transformersField = LaunchClassLoader.class.getDeclaredField("transformers");
             transformersField.setAccessible(true);
             @SuppressWarnings("unchecked")
-            List<IClassTransformer> transformers = (List<IClassTransformer>)transformersField.get(lcl);
-            
-            WrappedTransformerList<IClassTransformer> wrappedTransformers = 
-                    new WrappedTransformerList<IClassTransformer>(transformers);
-            
+            List<IClassTransformer> transformers = (List<IClassTransformer>) transformersField.get(lcl);
+
+            WrappedTransformerList<IClassTransformer> wrappedTransformers = new WrappedTransformerList<IClassTransformer>(
+                transformers);
+
             transformersField.set(lcl, wrappedTransformers);
 
-            
             Field cachedClassesField = LaunchClassLoader.class.getDeclaredField("cachedClasses");
             cachedClassesField.setAccessible(true);
             @SuppressWarnings("unchecked")
-            Map<String, Class<?>> cachedClasses = (Map<String, Class<?>>)cachedClassesField.get(lcl);
-            //cachedClasses.clear(); // gotta do this to make Mixin happy
-            
-            WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses = new WrappedAddListenableMap<String, Class<?>>(cachedClasses);
+            Map<String, Class<?>> cachedClasses = (Map<String, Class<?>>) cachedClassesField.get(lcl);
+            // cachedClasses.clear(); // gotta do this to make Mixin happy
+
+            WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses = new WrappedAddListenableMap<String, Class<?>>(
+                cachedClasses);
             cachedClassesField.set(lcl, wrappedCachedClasses);
-            
-            
+
             cacheTransformer = new CachingTransformer(transformers, wrappedTransformers, wrappedCachedClasses);
-            
+
             wrappedTransformers.alt = cacheTransformer;
-            
+
             LOGGER.info("Finished initializing cache transformer");
         } catch (NoSuchFieldException | SecurityException | IllegalArgumentException | IllegalAccessException e) {
             LOGGER.info("Exception registering cache transformer.");
@@ -376,21 +424,24 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
         }
         return cacheTransformer;
     }
-    
+
     @Override
     public boolean onPut(Map<String, Class<?>> delegateMap, String key, Class<?> value) {
-        /* Explanation: When we're loading cached classes, mixin gives an error because it thinks it's going to
-        have to run on already transformed classes. This doesn't actually happen, since CacheTransformer
-        steals the transformation right from all other classes, including Mixin. But we need to bypass
-        this error somehow, since it results in a crash. This is how we do it. (see MixinInfo.readTargets
-        to see why it works)*/ 
-     if(cache.keySet().contains(key)) {
-         return false;
-     } else {
-         // For some reason mixin gives a different error if we always refuse to put, so we should only
-         // do it when necessary.
-         return true;
-     }
+        /*
+         * Explanation: When we're loading cached classes, mixin gives an error because it thinks it's going to
+         * have to run on already transformed classes. This doesn't actually happen, since CacheTransformer
+         * steals the transformation right from all other classes, including Mixin. But we need to bypass
+         * this error somehow, since it results in a crash. This is how we do it. (see MixinInfo.readTargets
+         * to see why it works)
+         */
+        if (cache.keySet()
+            .contains(key)) {
+            return false;
+        } else {
+            // For some reason mixin gives a different error if we always refuse to put, so we should only
+            // do it when necessary.
+            return true;
+        }
     }
 
 }
