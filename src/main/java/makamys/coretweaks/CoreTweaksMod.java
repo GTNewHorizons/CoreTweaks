@@ -39,19 +39,19 @@ import net.minecraftforge.client.ClientCommandHandler;
 public class CoreTweaksMod
 {
     private static List<IModEventListener> listeners = new ArrayList<>();
-    
+
     @EventHandler
     public void onConstruction(FMLConstructionEvent event) {
         MCLib.init();
-        
+
         Config.reload();
-        
+
         Runtime.getRuntime().addShutdownHook(new Thread(new Runnable() {
             @Override
             public void run() {
                 listeners.forEach(l -> l.onShutdown());
             }}, "CoreTweaks shutdown thread"));
-        
+
         if(Config.transformerCache.isActive() && Config.transformerCacheMode == Config.TransformerCache.LITE) {
             registerListener(TransformerCache.instance);
         }
@@ -62,18 +62,16 @@ public class CoreTweaksMod
             registerListener(LoadLastWorldButton.instance = new LoadLastWorldButton());
         }
     }
-    
+
     @EventHandler
     public void preInit(FMLPreInitializationEvent event) {
-        MCLibModules.updateCheckAPI.submitModTask(CoreTweaks.MODID, "https://raw.githubusercontent.com/makamys/GTNewHorizons/master/updatejson/update.json");
-        
         listeners.forEach(l -> l.onPreInit(event));
     }
-    
+
     @EventHandler
     public void init(FMLInitializationEvent event) {
         FMLCommonHandler.instance().bus().register(this);
-        
+
         if(Config.coreTweaksCommand.isActive()) {
             ClientCommandHandler.instance.registerCommand(new CoreTweaksCommand());
         }
@@ -83,41 +81,41 @@ public class CoreTweaksMod
         if(Config.fixDoubleEat.isActive()) {
             FMLCommonHandler.instance().bus().register(new DoubleEatFixer());
         }
-        
+
         listeners.forEach(l -> l.onInit(event));
     }
-    
+
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         listeners.forEach(l -> l.onPostInit(event));
     }
-    
+
     @EventHandler
     public void onServerAboutToStart(FMLServerAboutToStartEvent event) {
         Config.reload();
         listeners.forEach(l -> l.onServerAboutToStart(event));
     }
-    
+
     @EventHandler
     public void onServerStarting(FMLServerStartingEvent event) {
         listeners.forEach(l -> l.onServerStarting(event));
     }
-    
+
     @EventHandler
     public void onServerStarted(FMLServerStartedEvent event) {
         listeners.forEach(l -> l.onServerStarted(event));
     }
-    
+
     @EventHandler
     public void onServerStopping(FMLServerStoppingEvent event) {
         listeners.forEach(l -> l.onServerStopping(event));
     }
-    
+
     @EventHandler
     public void onServerStopped(FMLServerStoppedEvent event) {
         listeners.forEach(l -> l.onServerStopped(event));
     }
-    
+
     @SubscribeEvent
     public void onClientTick(ClientTickEvent event) {
         if(Config.clientChunkMap.isActive()) {
@@ -134,10 +132,10 @@ public class CoreTweaksMod
                 }
             }
         }
-        
+
         KeyboardUtil.tick();
     }
-    
+
     public void registerListener(IModEventListener listener) {
         listeners.add(listener);
     }
