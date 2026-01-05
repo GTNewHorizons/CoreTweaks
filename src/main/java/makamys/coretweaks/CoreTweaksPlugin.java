@@ -17,22 +17,22 @@ public class CoreTweaksPlugin implements IFMLLoadingPlugin {
         Config.reload();
         CoreTweaks.init();
     }
-    
+
     @Override
     public String[] getASMTransformerClass() {
         List<String> transformerClasses = new ArrayList<>();
-        if(Config.forgeModDiscovererSkipKnownLibraries.isActive()) {
+        if (Config.forgeModDiscovererSkipKnownLibraries.isActive()) {
             transformerClasses.add("makamys.coretweaks.asm.ModDiscovererTransformer");
         }
-        if(!MixinConfigPlugin.isForgeSplashEnabled()) {
-            if(Config.forgeFastProgressBar.isActive()) {
+        if (!MixinConfigPlugin.isForgeSplashEnabled()) {
+            if (Config.forgeFastProgressBar.isActive()) {
                 transformerClasses.add("makamys.coretweaks.asm.FMLFastSplashTransformer");
             }
         }
-        if(Config.forgeFixLoggerClassLoadingError.isActive()) {
+        if (Config.forgeFixLoggerClassLoadingError.isActive()) {
             transformerClasses.add("makamys.coretweaks.asm.FMLLogTransformer");
         }
-        
+
         return transformerClasses.toArray(new String[] {});
     }
 
@@ -50,7 +50,7 @@ public class CoreTweaksPlugin implements IFMLLoadingPlugin {
     @Override
     public void injectData(Map<String, Object> data) {
         // TODO Auto-generated method stub
-        
+
     }
 
     @Override
@@ -58,7 +58,5 @@ public class CoreTweaksPlugin implements IFMLLoadingPlugin {
         // TODO Auto-generated method stub
         return null;
     }
-    
 
-    
 }

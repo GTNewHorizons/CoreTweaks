@@ -6,7 +6,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 
-import cpw.mods.fml.client.FMLClientHandler;
 import net.minecraft.block.Block;
 import net.minecraft.client.LoadingScreenRenderer;
 import net.minecraft.client.Minecraft;
@@ -18,33 +17,39 @@ import net.minecraft.world.World;
 import net.minecraft.world.storage.ISaveFormat;
 import net.minecraft.world.storage.SaveFormatComparator;
 
+import cpw.mods.fml.client.FMLClientHandler;
+
 public class MCUtil {
-    
+
     public static boolean tryToLoadWorld(String worldName) {
         Minecraft mc = Minecraft.getMinecraft();
         ISaveFormat saveLoader = mc.getSaveLoader();
         try {
             Optional<SaveFormatComparator> saveOpt;
-            
-            List<SaveFormatComparator> saveList = (List<SaveFormatComparator>)saveLoader.getSaveList();
-            
-            if(worldName != null && !worldName.isEmpty()) {
+
+            List<SaveFormatComparator> saveList = (List<SaveFormatComparator>) saveLoader.getSaveList();
+
+            if (worldName != null && !worldName.isEmpty()) {
                 saveOpt = saveList.stream()
-                        .filter(s -> s.getFileName().equals(worldName)).findFirst();
+                    .filter(
+                        s -> s.getFileName()
+                            .equals(worldName))
+                    .findFirst();
             } else {
-                if(saveList != null && !saveList.isEmpty()) {
+                if (saveList != null && !saveList.isEmpty()) {
                     Collections.sort(saveList);
                     saveOpt = Optional.of(saveList.get(0));
                 } else {
                     saveOpt = Optional.empty();
                 }
             }
-            if(saveOpt.isPresent()) {
-                SaveFormatComparator save = (SaveFormatComparator)saveOpt.get();
-                if(mc.loadingScreen == null) {
+            if (saveOpt.isPresent()) {
+                SaveFormatComparator save = (SaveFormatComparator) saveOpt.get();
+                if (mc.loadingScreen == null) {
                     mc.loadingScreen = new LoadingScreenRenderer(mc);
                 }
-                FMLClientHandler.instance().tryLoadExistingWorld(null, save.getFileName(), save.getDisplayName());
+                FMLClientHandler.instance()
+                    .tryLoadExistingWorld(null, save.getFileName(), save.getDisplayName());
                 return true;
             } else {
                 LOGGER.error("Couldn't find a suitable world to load");
@@ -55,7 +60,7 @@ public class MCUtil {
         }
         return false;
     }
-    
+
     /** EntityLivingBase#rayTrace but it works on servers and there is no cap on range. */
     public static MovingObjectPosition rayTrace(EntityLivingBase entity, double reach, boolean stopOnLiquid) {
         Vec3 vec3 = Vec3.createVectorHelper(entity.posX, entity.posY, entity.posZ);
@@ -63,11 +68,14 @@ public class MCUtil {
         Vec3 vec32 = vec3.addVector(vec31.xCoord * reach, vec31.yCoord * reach, vec31.zCoord * reach);
         return rayTrace(entity.worldObj, vec3, vec32, stopOnLiquid, false, true);
     }
-    
-    /** Changes from World#func_147447_a:
+
+    /**
+     * Changes from World#func_147447_a:
      * - There is no cap on range
-     * - It does not step into unloaded chunks */
-    public static MovingObjectPosition rayTrace(World dis, Vec3 start, Vec3 end, boolean stopOnLiquid, boolean mysteryFlag1, boolean mysteryFlag2) {
+     * - It does not step into unloaded chunks
+     */
+    public static MovingObjectPosition rayTrace(World dis, Vec3 start, Vec3 end, boolean stopOnLiquid,
+        boolean mysteryFlag1, boolean mysteryFlag2) {
         if (!Double.isNaN(start.xCoord) && !Double.isNaN(start.yCoord) && !Double.isNaN(start.zCoord)) {
             if (!Double.isNaN(end.xCoord) && !Double.isNaN(end.yCoord) && !Double.isNaN(end.zCoord)) {
                 int endX = MathHelper.floor_double(end.xCoord);
@@ -79,8 +87,10 @@ public class MCUtil {
                 Block startBlock = dis.getBlock(startX, startY, startZ);
                 int startMeta = dis.getBlockMetadata(startX, startY, startZ);
 
-                if ((!mysteryFlag1 || startBlock.getCollisionBoundingBoxFromPool(dis, startX, startY, startZ) != null) && startBlock.canCollideCheck(startMeta, stopOnLiquid)) {
-                    MovingObjectPosition movingobjectposition = startBlock.collisionRayTrace(dis, startX, startY, startZ, start, end);
+                if ((!mysteryFlag1 || startBlock.getCollisionBoundingBoxFromPool(dis, startX, startY, startZ) != null)
+                    && startBlock.canCollideCheck(startMeta, stopOnLiquid)) {
+                    MovingObjectPosition movingobjectposition = startBlock
+                        .collisionRayTrace(dis, startX, startY, startZ, start, end);
 
                     if (movingobjectposition != null) {
                         return movingobjectposition;
@@ -90,11 +100,10 @@ public class MCUtil {
                 MovingObjectPosition result2 = null;
 
                 // This is the only change from vanilla (originally it's 200).
-                int stepsLeft = (int)(Math.abs(end.xCoord) + Math.abs(end.yCoord) + Math.abs(end.zCoord)) * 2;
+                int stepsLeft = (int) (Math.abs(end.xCoord) + Math.abs(end.yCoord) + Math.abs(end.zCoord)) * 2;
 
                 while (stepsLeft-- >= 0) {
-                    if (Double.isNaN(start.xCoord) || Double.isNaN(start.yCoord) || Double.isNaN(start.zCoord))
-                    {
+                    if (Double.isNaN(start.xCoord) || Double.isNaN(start.yCoord) || Double.isNaN(start.zCoord)) {
                         return null;
                     }
 
@@ -110,25 +119,25 @@ public class MCUtil {
                     double newZ = 999.0D;
 
                     if (endX > startX) {
-                        newX = (double)startX + 1.0D;
+                        newX = (double) startX + 1.0D;
                     } else if (endX < startX) {
-                        newX = (double)startX + 0.0D;
+                        newX = (double) startX + 0.0D;
                     } else {
                         moveX = false;
                     }
 
                     if (endY > startY) {
-                        newY = (double)startY + 1.0D;
+                        newY = (double) startY + 1.0D;
                     } else if (endY < startY) {
-                        newY = (double)startY + 0.0D;
+                        newY = (double) startY + 0.0D;
                     } else {
                         moveY = false;
                     }
 
                     if (endZ > startZ) {
-                        newZ = (double)startZ + 1.0D;
+                        newZ = (double) startZ + 1.0D;
                     } else if (endZ < startZ) {
-                        newZ = (double)startZ + 0.0D;
+                        newZ = (double) startZ + 0.0D;
                     } else {
                         moveZ = false;
                     }
@@ -188,37 +197,39 @@ public class MCUtil {
                     }
 
                     Vec3 vec32 = Vec3.createVectorHelper(start.xCoord, start.yCoord, start.zCoord);
-                    startX = (int)(vec32.xCoord = (double)MathHelper.floor_double(start.xCoord));
+                    startX = (int) (vec32.xCoord = (double) MathHelper.floor_double(start.xCoord));
 
                     if (dir == 5) {
                         --startX;
                         ++vec32.xCoord;
                     }
 
-                    startY = (int)(vec32.yCoord = (double)MathHelper.floor_double(start.yCoord));
+                    startY = (int) (vec32.yCoord = (double) MathHelper.floor_double(start.yCoord));
 
                     if (dir == 1) {
                         --startY;
                         ++vec32.yCoord;
                     }
 
-                    startZ = (int)(vec32.zCoord = (double)MathHelper.floor_double(start.zCoord));
+                    startZ = (int) (vec32.zCoord = (double) MathHelper.floor_double(start.zCoord));
 
                     if (dir == 3) {
                         --startZ;
                         ++vec32.zCoord;
                     }
-                    
-                    if(!dis.blockExists(startX, startY, startZ)) {
+
+                    if (!dis.blockExists(startX, startY, startZ)) {
                         break;
                     }
-                    
+
                     Block newStartBlock = dis.getBlock(startX, startY, startZ);
                     int newStartMeta = dis.getBlockMetadata(startX, startY, startZ);
 
-                    if (!mysteryFlag1 || newStartBlock.getCollisionBoundingBoxFromPool(dis, startX, startY, startZ) != null) {
+                    if (!mysteryFlag1
+                        || newStartBlock.getCollisionBoundingBoxFromPool(dis, startX, startY, startZ) != null) {
                         if (newStartBlock.canCollideCheck(newStartMeta, stopOnLiquid)) {
-                            MovingObjectPosition result1 = newStartBlock.collisionRayTrace(dis, startX, startY, startZ, start, end);
+                            MovingObjectPosition result1 = newStartBlock
+                                .collisionRayTrace(dis, startX, startY, startZ, start, end);
 
                             if (result1 != null) {
                                 return result1;
@@ -236,9 +247,9 @@ public class MCUtil {
             return null;
         }
     }
-    
+
     public static MovingObjectPosition rayTrace(EntityLivingBase entity, double reach) {
         return rayTrace(entity, reach, true);
     }
-    
+
 }

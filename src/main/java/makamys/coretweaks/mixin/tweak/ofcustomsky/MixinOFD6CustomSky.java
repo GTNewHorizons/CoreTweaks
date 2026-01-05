@@ -8,10 +8,10 @@ import org.spongepowered.asm.mixin.injection.ModifyConstant;
 @Pseudo
 @Mixin(targets = "CustomSky", remap = false)
 public class MixinOFD6CustomSky {
-    
+
     @ModifyConstant(method = "renderSky", constant = @Constant(intValue = 8, ordinal = 0))
     private static int minRenderDistance(int o) {
         return 0;
     }
-    
+
 }

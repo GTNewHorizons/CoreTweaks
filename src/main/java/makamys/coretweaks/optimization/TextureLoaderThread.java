@@ -5,48 +5,51 @@ import java.io.IOException;
 
 import javax.imageio.ImageIO;
 
-import makamys.coretweaks.optimization.ThreadedTextureLoader.Failable;
-import makamys.coretweaks.optimization.ThreadedTextureLoader.ResourceLoadJob;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.IResource;
 import net.minecraft.util.ResourceLocation;
 
+import makamys.coretweaks.optimization.ThreadedTextureLoader.Failable;
+import makamys.coretweaks.optimization.ThreadedTextureLoader.ResourceLoadJob;
+
 class TextureLoaderThread extends Thread {
-    
+
     ThreadedTextureLoader parent;
-    
+
     public TextureLoaderThread(ThreadedTextureLoader parent, int index) {
         this.parent = parent;
         setName("Texture loader thread #" + String.valueOf(index));
         setDaemon(false);
     }
-    
+
     @Override
     public void run() {
-        while(true) {
+        while (true) {
             try {
-                if(parent.queue.isEmpty()) {
+                if (parent.queue.isEmpty()) {
                     say("No more images to load left.");
                 }
                 ResourceLoadJob job = parent.queue.take();
-                
+
                 IResource res;
-                if(job.resource.isPresent()) {
+                if (job.resource.isPresent()) {
                     res = job.resource.get();
                 } else {
                     ResourceLocation resLoc = job.resourceLocation.get();
                     // reusing res may be a bad idea since the stream gets stale
                     boolean reuseRes = false;
-                    if(reuseRes && parent.resMap.containsKey(resLoc)) {
+                    if (reuseRes && parent.resMap.containsKey(resLoc)) {
                         Failable<IResource, IOException> resMaybe = parent.resMap.get(resLoc);
-                        if(resMaybe.present()) {
+                        if (resMaybe.present()) {
                             res = resMaybe.get();
                         } else {
                             continue;
                         }
                     } else {
                         try {
-                            res = Minecraft.getMinecraft().getResourceManager().getResource(resLoc);
+                            res = Minecraft.getMinecraft()
+                                .getResourceManager()
+                                .getResource(resLoc);
                             parent.resMap.put(resLoc, Failable.of(res));
                         } catch (IOException e) {
                             say("hmm, couldn't load " + resLoc);
@@ -56,10 +59,10 @@ class TextureLoaderThread extends Thread {
                         notifyIfWaitingOn(resLoc);
                     }
                 }
-                
-                if(res != null) {
-                    if(!parent.map.containsKey(res)) {
-                    
+
+                if (res != null) {
+                    if (!parent.map.containsKey(res)) {
+
                         BufferedImage img;
                         try {
                             img = ImageIO.read(res.getInputStream());
@@ -70,7 +73,7 @@ class TextureLoaderThread extends Thread {
                             parent.map.put(res, Failable.failed(e));
                         }
                     } else {
-                        //say("meh, I already loaded " + res);
+                        // say("meh, I already loaded " + res);
                     }
                     notifyIfWaitingOn(res);
                 }
@@ -79,19 +82,19 @@ class TextureLoaderThread extends Thread {
             }
         }
     }
-    
+
     private void notifyIfWaitingOn(Object o) {
-        synchronized(ThreadedTextureLoader.waitingOn) {
-            if(!ThreadedTextureLoader.waitingOn.isEmpty()) {
+        synchronized (ThreadedTextureLoader.waitingOn) {
+            if (!ThreadedTextureLoader.waitingOn.isEmpty()) {
                 ResourceLoadJob job = ThreadedTextureLoader.waitingOn.get(0);
-                if(o.equals(job.resource.orElse(null)) || o.equals(job.resourceLocation.orElse(null))) {
+                if (o.equals(job.resource.orElse(null)) || o.equals(job.resourceLocation.orElse(null))) {
                     ThreadedTextureLoader.waitingOn.notify();
                 }
             }
         }
     }
-    
+
     void say(Object o) {
-        //LOGGER.info("<" + Thread.currentThread().getName() + "> " + o);
+        // LOGGER.info("<" + Thread.currentThread().getName() + "> " + o);
     }
 }

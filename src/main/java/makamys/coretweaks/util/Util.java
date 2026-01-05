@@ -8,9 +8,9 @@ public class Util {
         parent.mkdirs();
         return new File(parent, childName);
     }
-    
+
     public static boolean isClassPresent(String className) {
         return Util.class.getResource("/" + className.replace('.', '/') + ".class") != null;
     }
-    
+
 }

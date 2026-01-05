@@ -1,18 +1,19 @@
 package makamys.coretweaks.tweak;
 
-import makamys.coretweaks.util.MCUtil;
 import net.minecraft.entity.player.EntityPlayer;
 import net.minecraft.util.MovingObjectPosition;
 import net.minecraft.world.World;
 
+import makamys.coretweaks.util.MCUtil;
+
 public class LightFixStare {
-    
+
     public static void postPlayerCheckLight(World world) {
         if (!world.playerEntities.isEmpty()) {
             int playerIndex = world.rand.nextInt(world.playerEntities.size());
-            EntityPlayer player = (EntityPlayer)world.playerEntities.get(playerIndex);
+            EntityPlayer player = (EntityPlayer) world.playerEntities.get(playerIndex);
             MovingObjectPosition hit = MCUtil.rayTrace(player, 1000);
-            if(hit != null) {
+            if (hit != null) {
                 int posX = hit.blockX;
                 int posY = hit.blockY;
                 int posZ = hit.blockZ;
@@ -23,5 +24,5 @@ public class LightFixStare {
             }
         }
     }
-    
+
 }

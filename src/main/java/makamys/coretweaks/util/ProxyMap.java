@@ -5,13 +5,13 @@ import java.util.Map;
 import java.util.Set;
 
 public class ProxyMap<K, V> implements Map<K, V> {
-    
+
     private Map<K, V> o;
-    
+
     public ProxyMap(Map<K, V> original) {
         this.o = original;
     }
-    
+
     @Override
     public void clear() {
         o.clear();
@@ -71,5 +71,5 @@ public class ProxyMap<K, V> implements Map<K, V> {
     public Collection<V> values() {
         return o.values();
     }
-    
+
 }

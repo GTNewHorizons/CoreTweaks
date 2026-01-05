@@ -17,20 +17,22 @@ import net.minecraft.launchwrapper.LaunchClassLoader;
  * It delegates all operations to the original list, save for one: iterator() (which
  * LaunchClassLoader uses to iterate over the transformer chain):
  * <ul>
- * <li> returns an iterator to a list which only contains {@link CachingTransformer} normally </li>
- * <li> returns an iterator to the original list inside exceptional transformers that require 
- *      iteration over the real transformer chain </li>
+ * <li>returns an iterator to a list which only contains {@link CachingTransformer} normally</li>
+ * <li>returns an iterator to the original list inside exceptional transformers that require
+ * iteration over the real transformer chain</li>
  * </ul>
- */ 
+ */
 
 public class WrappedTransformerList<E> implements List<E> {
+
     public List<E> original;
-    
+
     public E alt;
-    
-    public WrappedTransformerList(List<E> original){
+
+    public WrappedTransformerList(List<E> original) {
         this.original = original;
     }
+
     @Override
     public boolean add(E e) {
         return original.add(e);
@@ -88,7 +90,7 @@ public class WrappedTransformerList<E> implements List<E> {
 
     @Override
     public int lastIndexOf(Object o) {
-        return original.lastIndexOf(o); 
+        return original.lastIndexOf(o);
     }
 
     @Override
@@ -99,21 +101,31 @@ public class WrappedTransformerList<E> implements List<E> {
     @Override
     public ListIterator<E> listIterator(int index) {
         boolean first = true;
-        
-        if(CachingTransformer.DEBUG_PRINT) {
-            for(StackTraceElement e : Thread.currentThread().getStackTrace()) {
-                if(!first && !e.getClassName().equals(getClass().getName())) {
-                    if(!e.getClassName().equals(LaunchClassLoader.class.getName())) {
-                        
-                        LOGGER.info("iterator called by " + String.join(" > ", Arrays.stream(Thread.currentThread().getStackTrace()).map(x -> x.getClassName()).collect(Collectors.toList())));
+
+        if (CachingTransformer.DEBUG_PRINT) {
+            for (StackTraceElement e : Thread.currentThread()
+                .getStackTrace()) {
+                if (!first && !e.getClassName()
+                    .equals(getClass().getName())) {
+                    if (!e.getClassName()
+                        .equals(LaunchClassLoader.class.getName())) {
+
+                        LOGGER.info(
+                            "iterator called by " + String.join(
+                                " > ",
+                                Arrays.stream(
+                                    Thread.currentThread()
+                                        .getStackTrace())
+                                    .map(x -> x.getClassName())
+                                    .collect(Collectors.toList())));
                     }
                     break;
                 }
                 first = false;
             }
         }
-        
-        if(alt == null) {
+
+        if (alt == null) {
             return original.listIterator(index);
         } else {
             List<E> list = new ArrayList<E>(1);
