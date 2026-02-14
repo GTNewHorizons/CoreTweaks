@@ -74,7 +74,6 @@ public class ConfigMigrator {
             "optimizations",
             "forgeModDiscovererSkipKnownLibraries",
             forgeModDiscovererSkipKnownLibraries);
-        migrateFeatureSetting("optimizations", "getPendingBlockUpdates", optimizeGetPendingBlockUpdates);
         migrateFeatureSetting("optimizations", "jarDiscovererCache", jarDiscovererCache);
         migrateFeatureSetting("optimizations", "ofOptimizeWorldRenderer", ofOptimizeWorldRenderer);
         migrateFeatureSetting("optimizations", "tcpNoDelay", tcpNoDelay);
