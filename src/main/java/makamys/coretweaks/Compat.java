@@ -62,6 +62,10 @@ public class Compat {
         return Config.class.getResource("/com/falsepattern/lumina/api/LumiAPI.class") != null;
     }
 
+    public static boolean isSupernovaPresent() {
+        return Config.class.getResource("/com/mitchej123/supernova/core/SupernovaCore.class") != null;
+    }
+
     private static String getModVersion(String className) {
         String path = "/" + className.replace('.', '/') + ".class";
         try (InputStream is = Compat.class.getResourceAsStream(path)) {
