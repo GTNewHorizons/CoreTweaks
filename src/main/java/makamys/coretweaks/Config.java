@@ -109,7 +109,7 @@ public class Config {
     @ConfigWrappedEnum(
         cat = "Bugfixes",
         def = TRUE,
-        com = "Fixes heightmap calculation not including the top layer of 16x16x16 regions, causing lighting errors (MC-7508)\nCompatibility note: Not compatible with LUMINA, which ostensibly accomplishes the same thing (this feature will be disabled).")
+        com = "Fixes heightmap calculation not including the top layer of 16x16x16 regions, causing lighting errors (MC-7508)\nCompatibility note: Not compatible with LUMINA or Supernova, which ostensibly accomplishes the same thing (this feature will be disabled).")
     public static FeatureSetting fixHeightmapRange;
     @ConfigWrappedEnum(
         cat = "Bugfixes",
@@ -557,6 +557,9 @@ public class Config {
         } else if (feature == fixHeightmapRange) {
             if (Compat.isLuminaPresent()) {
                 LOGGER.info("Disabling heightmap range fix because LUMINA is present.");
+                return true;
+            } else if (Compat.isSupernovaPresent()) {
+                LOGGER.info("Disabling heightmap range fix because Supernova is present.");
                 return true;
             }
         }
