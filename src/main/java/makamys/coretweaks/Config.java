@@ -30,7 +30,7 @@ public class Config {
     @ConfigWrappedEnum(
         cat = "Tweaks",
         def = TRUE,
-        com = "Causes lighting updates around the block the player is looking at. A workaround for lighting errors that lets you fix them by staring at them. Useful in the Nether.")
+        com = "Causes lighting updates around the block the player is looking at. A workaround for lighting errors that lets you fix them by staring at them. Useful in the Nether.\nCompatibility note: Not compatible with Supernova (this feature will be disabled).")
     public static FeatureSetting lightFixStare;
     @ConfigWrappedEnum(
         cat = "Tweaks",
@@ -560,6 +560,11 @@ public class Config {
                 return true;
             } else if (Compat.isSupernovaPresent()) {
                 LOGGER.info("Disabling heightmap range fix because Supernova is present.");
+                return true;
+            }
+        } else if (feature == lightFixStare) {
+            if (Compat.isSupernovaPresent()) {
+                LOGGER.info("Disabling light fix stare because Supernova is present.");
                 return true;
             }
         }
