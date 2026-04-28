@@ -23,6 +23,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
@@ -61,11 +62,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     public static TransformerCache instance = new TransformerCache();
 
     private List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
-    private Map<String, TransformerData> transformerMap = new HashMap<>();
+    private Map<String, TransformerData> transformerMap = new ConcurrentHashMap<>();
     private CacheMeta meta = new CacheMeta();
-
-    private static byte[] lastClassData;
-    private static int lastClassDataLength;
 
     private static final byte MAGIC_0 = 0;
     private static final byte VERSION = 2;
@@ -77,7 +75,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         .childFile(CoreTweaks.OUT_DIR, "transformercache_profiler.csv");
     private Kryo kryo;
 
-    private static final Delta delta = new Delta();
+    private static final ThreadLocal<Delta> deltaThreadLocal = ThreadLocal.withInitial(Delta::new);
 
     private static final byte[] NULL_BYTE_ARRAY = new byte[0];
 
@@ -85,8 +83,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private boolean inited = false;
 
-    private static byte[] memoizedHashData;
-    private static int memoizedHashValue;
+    private static final ThreadLocal<byte[]> memoizedHashData = new ThreadLocal<>();
+    private static final ThreadLocal<Integer> memoizedHashValue = new ThreadLocal<>();
 
     public void init(boolean late) {
         if (inited) return;
@@ -144,7 +142,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 } else if (!storedMeta.equals(meta)) {
                     CoreTweaks.LOGGER.warn("Transformer cache settings have changed, discarding.");
                 } else {
-                    transformerMap = returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class));
+                    transformerMap = new ConcurrentHashMap<>(
+                        returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class)));
                 }
 
                 Iterator<Entry<String, TransformerData>> it = transformerMap.entrySet()
@@ -291,8 +290,15 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             if (trans != null) {
                 if (nullSafeLength(basicClass) == trans.preLength && calculateHash(basicClass) == trans.preHash) {
                     trans.lastAccessed = now();
-                    return trans.postHash == trans.preHash ? toNullableByteArray(basicClass)
-                        : trans.getNewClass(basicClass);
+                    if (trans.postHash == trans.preHash) {
+                        return toNullableByteArray(basicClass);
+                    }
+                    byte[] result = trans.getNewClass(basicClass);
+                    if (result == null) {
+                        transData.transformationMap.remove(transformedName);
+                        return null;
+                    }
+                    return result;
                 }
             }
         }
@@ -311,37 +317,16 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         return array == null ? -1 : array.length;
     }
 
-    public void prePutCached(String transName, String name, String transformedName, byte[] basicClass) {
-        putLastClassData(basicClass);
-    }
-
-    private void putLastClassData(byte[] data) {
-        if (data != null) {
-            if (lastClassData == null || lastClassData.length < data.length) {
-                int newSize = 1;
-                while (newSize < data.length) {
-                    newSize *= 2;
-                }
-                lastClassData = new byte[newSize];
-            }
-            System.arraycopy(data, 0, lastClassData, 0, data.length);
-            lastClassDataLength = data.length;
-        } else {
-            lastClassData = null;
-            lastClassDataLength = 0;
-        }
-    }
-
-    /** MUST be preceded with a call to prePutCached. */
-    public void putCached(String transName, String name, String transformedName, byte[] result) {
+    public void putCached(String transName, String name, String transformedName, byte[] preTransformBytes,
+        byte[] result) {
         TransformerData data = transformerMap.get(transName);
         if (data == null) {
             transformerMap.put(transName, data = new TransformerData(transName));
         }
         CachedTransformation cached = new CachedTransformation(
             transformedName,
-            lastClassData,
-            lastClassDataLength,
+            preTransformBytes,
+            nullSafeLength(preTransformBytes),
             result);
         if (cached.isValid()) {
             data.transformationMap.put(transformedName, cached);
@@ -353,15 +338,16 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     public static int calculateHash(byte[] data, int len) {
-        if (data == memoizedHashData) {
-            return memoizedHashValue;
+        if (data == memoizedHashData.get()) {
+            return memoizedHashValue.get();
         }
-        memoizedHashData = data;
-        memoizedHashValue = data == null ? -1
+        int hash = data == null ? -1
             : Hashing.adler32()
                 .hashBytes(data, 0, len)
                 .asInt();
-        return memoizedHashValue;
+        memoizedHashData.set(data);
+        memoizedHashValue.set(hash);
+        return hash;
     }
 
     private static int now() {
@@ -378,7 +364,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     public static class TransformerData {
 
         String transformerClassName;
-        Map<String, CachedTransformation> transformationMap = new HashMap<>();
+        Map<String, CachedTransformation> transformationMap = new ConcurrentHashMap<>();
 
         public TransformerData(String transformerClassName) {
             this.transformerClassName = transformerClassName;
@@ -425,10 +411,11 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
                 try {
                     ByteArrayOutputStream os = new ByteArrayOutputStream();
-                    delta.compute(
-                        new FastByteBufferSeekableSource(ByteBuffer.wrap(source, 0, sourceLen)),
-                        new ByteArrayInputStream(target),
-                        new GDiffWriter(os));
+                    deltaThreadLocal.get()
+                        .compute(
+                            new FastByteBufferSeekableSource(ByteBuffer.wrap(source, 0, sourceLen)),
+                            new ByteArrayInputStream(target),
+                            new GDiffWriter(os));
                     return os.toByteArray();
                 } catch (ClosedByInterruptException e) {
                     // nothome delta library uses interruptible channels which throw an error if the thread gets
@@ -451,7 +438,20 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                     return diff;
                 }
                 byte[] newClass = new byte[postLength];
-                InMemoryGDiffPatcher.patch(source, diff, newClass);
+                try {
+                    InMemoryGDiffPatcher.patch(source, diff, newClass);
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to apply cached diff for " + targetClassName + ", discarding entry");
+                    return null;
+                }
+                int actualHash = Hashing.adler32()
+                    .hashBytes(newClass)
+                    .asInt();
+                if (actualHash != postHash) {
+                    LOGGER
+                        .warn("Hash mismatch after applying cached diff for " + targetClassName + ", discarding entry");
+                    return null;
+                }
                 return newClass;
             }
 

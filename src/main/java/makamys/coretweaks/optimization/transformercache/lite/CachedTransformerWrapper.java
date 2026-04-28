@@ -23,9 +23,9 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
         byte[] result = TransformerCache.instance.getCached(transformerName, name, transformedName, basicClass);
         if (result == null) {
             misses++;
-            TransformerCache.instance.prePutCached(transformerName, name, transformedName, basicClass);
             result = proxy.invokeNextHandler(name, transformedName, basicClass);
-            TransformerCache.instance.putCached(transformerName, name, transformedName, result);
+            TransformerCache.instance
+                .putCached(transformerName, name, transformedName, basicClass, result != null ? result.clone() : null);
         }
         return TransformerCache.fromNullableByteArray(result);
     }
