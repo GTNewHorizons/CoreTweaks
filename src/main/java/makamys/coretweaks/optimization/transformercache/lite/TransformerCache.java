@@ -83,8 +83,13 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private boolean inited = false;
 
-    private static final ThreadLocal<byte[]> memoizedHashData = new ThreadLocal<>();
-    private static final ThreadLocal<Integer> memoizedHashValue = new ThreadLocal<>();
+    private static class HashMemo {
+
+        byte[] data;
+        int value;
+    }
+
+    private static final ThreadLocal<HashMemo> memoizedHash = ThreadLocal.withInitial(HashMemo::new);
 
     public void init(boolean late) {
         if (inited) return;
@@ -338,15 +343,16 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     public static int calculateHash(byte[] data, int len) {
-        if (data == memoizedHashData.get()) {
-            return memoizedHashValue.get();
+        HashMemo memo = memoizedHash.get();
+        if (data == memo.data) {
+            return memo.value;
         }
         int hash = data == null ? -1
             : Hashing.adler32()
                 .hashBytes(data, 0, len)
                 .asInt();
-        memoizedHashData.set(data);
-        memoizedHashValue.set(hash);
+        memo.data = data;
+        memo.value = hash;
         return hash;
     }
 
