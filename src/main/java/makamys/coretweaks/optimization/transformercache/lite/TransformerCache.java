@@ -35,6 +35,7 @@ import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeOutput;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
+import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.repackage.com.nothome.delta.Delta;
 import cpw.mods.fml.repackage.com.nothome.delta.GDiffWriter;
 import lombok.EqualsAndHashCode;
@@ -84,6 +85,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private Set<String> transformersToCache = new HashSet<>();
 
     private boolean inited = false;
+    private boolean savedAndCleared = false;
 
     private static byte[] memoizedHashData;
     private static int memoizedHashValue;
@@ -197,19 +199,38 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         return map;
     }
 
-    @Override
-    public void onShutdown() {
+    private void persistCache() {
+        if (CachedTransformation.diffErrors > 0) {
+            logger().warn(
+                CachedTransformation.diffErrors + " entries have errored. Please report this if it keeps happening!");
+        }
         try {
-            if (CachedTransformation.diffErrors > 0) {
-                logger().warn(
-                    CachedTransformation.diffErrors
-                        + " entries have errored. Please report this if it keeps happening!");
-            }
             saveTransformerCache();
             saveProfilingResults();
         } catch (IOException e) {
-            logger().error("Error in lite transformer cache shutdown hook", e);
+            logger().error("Error saving lite transformer cache", e);
         }
+    }
+
+    @Override
+    public void onLoadComplete(FMLLoadCompleteEvent event) {
+        persistCache();
+        transformerMap = new HashMap<>();
+        myTransformers = new ArrayList<>();
+        lastClassData = null;
+        lastClassDataLength = 0;
+        memoizedHashData = null;
+        memoizedHashValue = 0;
+        savedAndCleared = true;
+        LOGGER.info("Lite transformer cache saved and cleared from memory");
+    }
+
+    @Override
+    public void onShutdown() {
+        if (savedAndCleared) {
+            return;
+        }
+        persistCache();
     }
 
     private void saveTransformerCache() throws IOException {
