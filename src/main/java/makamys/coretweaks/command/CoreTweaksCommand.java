@@ -17,7 +17,7 @@ public class CoreTweaksCommand extends CommandBase {
     public static final EnumChatFormatting HELP_USAGE_COLOR = EnumChatFormatting.YELLOW;
     public static final EnumChatFormatting HELP_EMPHASIS_COLOR = EnumChatFormatting.DARK_AQUA;
 
-    private static Map<String, ISubCommand> subCommands = new HashMap<>();
+    private static final Map<String, ISubCommand> subCommands = new HashMap<>();
 
     public static void registerSubCommand(String key, ISubCommand command) {
         subCommands.put(key, command);

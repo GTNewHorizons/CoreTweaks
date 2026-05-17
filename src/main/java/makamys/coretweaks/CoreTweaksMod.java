@@ -3,12 +3,6 @@ package makamys.coretweaks;
 import java.util.ArrayList;
 import java.util.List;
 
-import net.minecraft.client.Minecraft;
-import net.minecraft.client.multiplayer.ChunkProviderClient;
-import net.minecraft.client.multiplayer.WorldClient;
-import net.minecraft.entity.Entity;
-import net.minecraft.util.LongHashMap;
-import net.minecraft.world.chunk.IChunkProvider;
 import net.minecraftforge.client.ClientCommandHandler;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -24,22 +18,18 @@ import cpw.mods.fml.common.event.FMLServerStartedEvent;
 import cpw.mods.fml.common.event.FMLServerStartingEvent;
 import cpw.mods.fml.common.event.FMLServerStoppedEvent;
 import cpw.mods.fml.common.event.FMLServerStoppingEvent;
-import cpw.mods.fml.common.eventhandler.SubscribeEvent;
-import cpw.mods.fml.common.gameevent.TickEvent.ClientTickEvent;
 import makamys.coretweaks.bugfix.DoubleEatFixer;
 import makamys.coretweaks.command.CoreTweaksCommand;
-import makamys.coretweaks.ducks.IChunkProviderClient;
-import makamys.coretweaks.optimization.ClientChunkMap;
+import makamys.coretweaks.optimization.ClientChunkMapTicker;
 import makamys.coretweaks.optimization.JarDiscovererCache;
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache;
 import makamys.coretweaks.tweak.LoadLastWorldButton;
-import makamys.coretweaks.util.KeyboardUtil;
 import makamys.mclib.core.MCLib;
 
 @Mod(modid = CoreTweaks.MODID, version = CoreTweaks.VERSION)
 public class CoreTweaksMod {
 
-    private static List<IModEventListener> listeners = new ArrayList<>();
+    private static final List<IModEventListener> listeners = new ArrayList<>();
 
     @EventHandler
     public void onConstruction(FMLConstructionEvent event) {
@@ -48,13 +38,8 @@ public class CoreTweaksMod {
         Config.reload();
 
         Runtime.getRuntime()
-            .addShutdownHook(new Thread(new Runnable() {
-
-                @Override
-                public void run() {
-                    listeners.forEach(l -> l.onShutdown());
-                }
-            }, "CoreTweaks shutdown thread"));
+            .addShutdownHook(
+                new Thread(() -> listeners.forEach(IModEventListener::onShutdown), "CoreTweaks shutdown thread"));
 
         if (Config.transformerCache.isActive() && Config.transformerCacheMode == Config.TransformerCache.LITE) {
             registerListener(TransformerCache.instance);
@@ -74,9 +59,11 @@ public class CoreTweaksMod {
 
     @EventHandler
     public void init(FMLInitializationEvent event) {
-        FMLCommonHandler.instance()
-            .bus()
-            .register(this);
+        if (Config.clientChunkMap.isActive()) {
+            FMLCommonHandler.instance()
+                .bus()
+                .register(new ClientChunkMapTicker());
+        }
 
         if (Config.coreTweaksCommand.isActive()) {
             ClientCommandHandler.instance.registerCommand(new CoreTweaksCommand());
@@ -129,26 +116,6 @@ public class CoreTweaksMod {
     @EventHandler
     public void onServerStopped(FMLServerStoppedEvent event) {
         listeners.forEach(l -> l.onServerStopped(event));
-    }
-
-    @SubscribeEvent
-    public void onClientTick(ClientTickEvent event) {
-        if (Config.clientChunkMap.isActive()) {
-            WorldClient world = Minecraft.getMinecraft().theWorld;
-            if (world != null) {
-                IChunkProvider provider = world.getChunkProvider();
-                if (provider != null && provider instanceof ChunkProviderClient) {
-                    ChunkProviderClient cp = (ChunkProviderClient) provider;
-                    LongHashMap cm = ((IChunkProviderClient) cp).getChunkMapping();
-                    if (cm instanceof ClientChunkMap) {
-                        Entity player = Minecraft.getMinecraft().renderViewEntity;
-                        ((ClientChunkMap) cm).setCenter(((int) player.posX / 16), ((int) player.posZ / 16));
-                    }
-                }
-            }
-        }
-
-        KeyboardUtil.tick();
     }
 
     public void registerListener(IModEventListener listener) {

@@ -349,7 +349,7 @@ public class Config {
             FORCE;
         }
 
-        private static FeatureSetting FALSE = new FeatureSetting(Setting.FALSE);
+        private static final FeatureSetting FALSE = new FeatureSetting(Setting.FALSE);
 
         private Setting setting;
 
@@ -434,7 +434,9 @@ public class Config {
         }
     }
 
-    private static AnnotationBasedConfigHelper configHelper = new AnnotationBasedConfigHelper(Config.class, LOGGER);
+    private static final AnnotationBasedConfigHelper configHelper = new AnnotationBasedConfigHelper(
+        Config.class,
+        LOGGER);
     private static boolean firstLoad = true;
 
     public static void reload() {

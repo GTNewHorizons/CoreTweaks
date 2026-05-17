@@ -15,7 +15,7 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
             .getCanonicalName();
     }
 
-    private String transformerName;
+    private final String transformerName;
 
     @Override
     public byte[] wrapTransform(String name, String transformedName, byte[] basicClass, TransformerProxy proxy) {

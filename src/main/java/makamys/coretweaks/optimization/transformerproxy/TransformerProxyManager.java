@@ -30,7 +30,7 @@ public class TransformerProxyManager implements AdditionEventListener<IClassTran
     public static TransformerProxyManager instance = new TransformerProxyManager();
 
     private boolean installedListener;
-    private List<ITransformerWrapperProvider> listeners = new ArrayList<>();
+    private final List<ITransformerWrapperProvider> listeners = new ArrayList<>();
 
     public void addAdditionListener(ITransformerWrapperProvider listener, boolean installListener) {
         listeners.add(0, listener);

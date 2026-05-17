@@ -20,7 +20,7 @@ public class FastDeobfuscationRemapper {
             remapper,
             new ProxyMap<String, Map<String, String>>(Maps.newHashMap()) {
 
-                private Map<String, String> emptyMap = Maps.newHashMap();
+                private final Map<String, String> emptyMap = Maps.newHashMap();
 
                 @Override
                 public boolean containsKey(Object key) {

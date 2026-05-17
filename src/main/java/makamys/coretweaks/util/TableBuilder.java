@@ -14,8 +14,8 @@ import org.apache.commons.lang3.EnumUtils;
 /** A table you can build row by row, and export to a CSV. */
 public class TableBuilder<C extends Enum, V> {
 
-    private List<C> entryKeys = new ArrayList<>();
-    private List<V> entryValues = new ArrayList<>();
+    private final List<C> entryKeys = new ArrayList<>();
+    private final List<V> entryValues = new ArrayList<>();
 
     public void set(C column, V value) {
         entryKeys.add(column);
