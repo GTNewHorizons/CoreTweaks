@@ -1,7 +1,6 @@
 package makamys.coretweaks;
 
 import cpw.mods.fml.common.event.FMLInitializationEvent;
-import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerAboutToStartEvent;
@@ -17,8 +16,6 @@ public interface IModEventListener {
     default void onInit(FMLInitializationEvent event) {};
 
     default void onPostInit(FMLPostInitializationEvent event) {};
-
-    default void onLoadComplete(FMLLoadCompleteEvent event) {};
 
     default void onServerAboutToStart(FMLServerAboutToStartEvent event) {};
 

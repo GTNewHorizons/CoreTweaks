@@ -35,7 +35,12 @@ import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeOutput;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
-import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
+import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.event.FMLServerStartedEvent;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import cpw.mods.fml.repackage.com.nothome.delta.Delta;
 import cpw.mods.fml.repackage.com.nothome.delta.GDiffWriter;
 import lombok.EqualsAndHashCode;
@@ -85,7 +90,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private Set<String> transformersToCache = new HashSet<>();
 
     private final boolean inited = false;
-    private boolean savedAndCleared = false;
+    private volatile boolean savedAndCleared = false;
 
     private static byte[] memoizedHashData;
     private static int memoizedHashValue;
@@ -200,20 +205,49 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     private void persistCache() {
+        if (savedAndCleared) {
+            return;
+        }
         if (CachedTransformation.diffErrors > 0) {
             logger().warn(
-                CachedTransformation.diffErrors + " entries have errored. Please report this if it keeps happening!");
+                "{} entries have errored. Please report this if it keeps happening!",
+                CachedTransformation.diffErrors);
         }
         try {
+            final long l = System.currentTimeMillis();
             saveTransformerCache();
             saveProfilingResults();
+            logger().info("Saved transformer cache in {}ms", (System.currentTimeMillis() - l));
         } catch (IOException e) {
             logger().error("Error saving lite transformer cache", e);
         }
     }
 
+    private int clientTicks;
+
+    @SideOnly(Side.CLIENT)
+    @SubscribeEvent
+    public void onTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.START) {
+            clientTicks++;
+            if (clientTicks > 40) {
+                FMLCommonHandler.instance()
+                    .bus()
+                    .unregister(this);
+                freeCacheDuringRuntime();
+            }
+        }
+    }
+
     @Override
-    public void onLoadComplete(FMLLoadCompleteEvent event) {
+    public void onServerStarted(FMLServerStartedEvent event) {
+        freeCacheDuringRuntime();
+    }
+
+    private void freeCacheDuringRuntime() {
+        if (savedAndCleared) {
+            return;
+        }
         persistCache();
         transformerMap.clear();
         myTransformers.clear();
@@ -227,9 +261,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     @Override
     public void onShutdown() {
-        if (savedAndCleared) {
-            return;
-        }
         persistCache();
     }
 
@@ -240,7 +271,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             DAT.createNewFile();
         }
         logger().info("Saving transformer cache");
-        trimCache((long) Config.liteTransformerCacheMaxSizeMB * 1024l * 1024l);
+        trimCache((long) Config.liteTransformerCacheMaxSizeMB * 1024L * 1024L);
         try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
             kryo.writeObject(output, MAGIC_0);
             kryo.writeObject(output, VERSION);
@@ -283,7 +314,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     private int sortByAge(CachedTransformation a, CachedTransformation b) {
-        return a.lastAccessed < b.lastAccessed ? -1 : a.lastAccessed > b.lastAccessed ? 1 : 0;
+        return Integer.compare(a.lastAccessed, b.lastAccessed);
     }
 
     private void saveProfilingResults() throws IOException {
@@ -296,9 +327,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 int runs = 0;
                 int misses = 0;
                 if (transformer instanceof CachedTransformerWrapper) {
-                    CachedTransformerWrapper proxy = (CachedTransformerWrapper) transformer;
-                    runs = proxy.runs;
-                    misses = proxy.misses;
+                    runs = transformer.runs;
+                    misses = transformer.misses;
                 }
                 fw.write(className + "," + name + "," + runs + "," + misses + "\n");
             }

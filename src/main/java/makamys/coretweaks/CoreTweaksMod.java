@@ -10,7 +10,6 @@ import cpw.mods.fml.common.Mod;
 import cpw.mods.fml.common.Mod.EventHandler;
 import cpw.mods.fml.common.event.FMLConstructionEvent;
 import cpw.mods.fml.common.event.FMLInitializationEvent;
-import cpw.mods.fml.common.event.FMLLoadCompleteEvent;
 import cpw.mods.fml.common.event.FMLPostInitializationEvent;
 import cpw.mods.fml.common.event.FMLPreInitializationEvent;
 import cpw.mods.fml.common.event.FMLServerAboutToStartEvent;
@@ -43,6 +42,12 @@ public class CoreTweaksMod {
 
         if (Config.transformerCache.isActive() && Config.transformerCacheMode == Config.TransformerCache.LITE) {
             registerListener(TransformerCache.instance);
+            if (event.getSide()
+                .isClient()) {
+                FMLCommonHandler.instance()
+                    .bus()
+                    .register(TransformerCache.instance);
+            }
         }
         if (Config.jarDiscovererCache.isActive()) {
             registerListener(JarDiscovererCache.instance);
@@ -85,11 +90,6 @@ public class CoreTweaksMod {
     @EventHandler
     public void postInit(FMLPostInitializationEvent event) {
         listeners.forEach(l -> l.onPostInit(event));
-    }
-
-    @EventHandler
-    public void loadComplete(FMLLoadCompleteEvent event) {
-        listeners.forEach(l -> l.onLoadComplete(event));
     }
 
     @EventHandler
