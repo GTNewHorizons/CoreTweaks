@@ -215,8 +215,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     @Override
     public void onLoadComplete(FMLLoadCompleteEvent event) {
         persistCache();
-        transformerMap = new HashMap<>();
-        myTransformers = new ArrayList<>();
+        transformerMap.clear();
+        myTransformers.clear();
         lastClassData = null;
         lastClassDataLength = 0;
         memoizedHashData = null;
