@@ -32,7 +32,6 @@ import makamys.coretweaks.optimization.ClientChunkMap;
 import makamys.coretweaks.optimization.JarDiscovererCache;
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache;
 import makamys.coretweaks.tweak.LoadLastWorldButton;
-import makamys.coretweaks.util.KeyboardUtil;
 import makamys.mclib.core.MCLib;
 
 @Mod(modid = CoreTweaks.MODID, version = CoreTweaks.VERSION)
@@ -131,7 +130,7 @@ public class CoreTweaksMod {
             WorldClient world = Minecraft.getMinecraft().theWorld;
             if (world != null) {
                 IChunkProvider provider = world.getChunkProvider();
-                if (provider != null && provider instanceof ChunkProviderClient) {
+                if (provider instanceof ChunkProviderClient) {
                     ChunkProviderClient cp = (ChunkProviderClient) provider;
                     LongHashMap cm = ((IChunkProviderClient) cp).getChunkMapping();
                     if (cm instanceof ClientChunkMap) {
@@ -141,8 +140,6 @@ public class CoreTweaksMod {
                 }
             }
         }
-
-        KeyboardUtil.tick();
     }
 
     public void registerListener(IModEventListener listener) {
