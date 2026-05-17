@@ -60,9 +60,9 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     public static TransformerCache instance = new TransformerCache();
 
-    private List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
+    private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
     private Map<String, TransformerData> transformerMap = new HashMap<>();
-    private CacheMeta meta = new CacheMeta();
+    private final CacheMeta meta = new CacheMeta();
 
     private static byte[] lastClassData;
     private static int lastClassDataLength;
@@ -83,7 +83,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private Set<String> transformersToCache = new HashSet<>();
 
-    private boolean inited = false;
+    private final boolean inited = false;
 
     private static byte[] memoizedHashData;
     private static int memoizedHashValue;

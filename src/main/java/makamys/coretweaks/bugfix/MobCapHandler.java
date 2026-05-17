@@ -14,7 +14,7 @@ import net.minecraft.world.biome.BiomeGenBase;
 
 public class MobCapHandler {
 
-    private static Map<Class<? extends Entity>, Optional<EnumCreatureType>> creatureTypeLookup = new HashMap<>();
+    private static final Map<Class<? extends Entity>, Optional<EnumCreatureType>> creatureTypeLookup = new HashMap<>();
 
     public static boolean isCreatureType(Entity entity, EnumCreatureType type) {
         Class<? extends Entity> cls = entity.getClass();

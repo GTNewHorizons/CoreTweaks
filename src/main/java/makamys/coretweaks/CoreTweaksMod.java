@@ -28,7 +28,7 @@ import makamys.mclib.core.MCLib;
 @Mod(modid = CoreTweaks.MODID, version = CoreTweaks.VERSION)
 public class CoreTweaksMod {
 
-    private static List<IModEventListener> listeners = new ArrayList<>();
+    private static final List<IModEventListener> listeners = new ArrayList<>();
 
     @EventHandler
     public void onConstruction(FMLConstructionEvent event) {

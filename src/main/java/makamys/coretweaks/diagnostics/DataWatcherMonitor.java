@@ -14,7 +14,7 @@ import org.apache.commons.lang3.exception.ExceptionUtils;
 
 public class DataWatcherMonitor {
 
-    private static WeakHashMap<DataWatcher, Map<Integer, List<AdditionRecord>>> data = new WeakHashMap<>();
+    private static final WeakHashMap<DataWatcher, Map<Integer, List<AdditionRecord>>> data = new WeakHashMap<>();
 
     public static void onAddition(DataWatcher dw, String entityClassName, int id) {
         AdditionRecord record = new AdditionRecord();
