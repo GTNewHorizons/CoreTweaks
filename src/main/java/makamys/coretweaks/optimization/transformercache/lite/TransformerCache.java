@@ -385,19 +385,19 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     /** MUST be preceded with a call to prePutCached. */
     public void putCached(String transName, String name, String transformedName, byte[] result) {
-        TransformerData data = transformerMap.get(transName);
-        if (data == null) {
-            synchronized (transformerMap) {
+        synchronized (transformerMap) {
+            TransformerData data = transformerMap.get(transName);
+            if (data == null) {
                 transformerMap.put(transName, data = new TransformerData(transName));
             }
-        }
-        CachedTransformation cached = new CachedTransformation(
-            transformedName,
-            lastClassData,
-            lastClassDataLength,
-            result);
-        if (cached.isValid()) {
-            data.transformationMap.put(transformedName, cached);
+            CachedTransformation cached = new CachedTransformation(
+                transformedName,
+                lastClassData,
+                lastClassDataLength,
+                result);
+            if (cached.isValid()) {
+                data.transformationMap.put(transformedName, cached);
+            }
         }
     }
 
