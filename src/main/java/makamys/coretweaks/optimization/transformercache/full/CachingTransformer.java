@@ -56,7 +56,7 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
 
         private final CachingTransformer cacheTransformer;
 
-        private final int saveInterval = 10000;
+        private static final int saveInterval = 10000;
 
         public SaveThread(CachingTransformer ct) {
             this.cacheTransformer = ct;
