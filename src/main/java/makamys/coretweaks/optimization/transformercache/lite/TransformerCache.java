@@ -62,7 +62,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     public static TransformerCache instance = new TransformerCache();
 
     private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
-    private Map<String, TransformerData> transformerMap = new HashMap<>();
+    private final Map<String, TransformerData> transformerMap = new HashMap<>();
     private final CacheMeta meta = new CacheMeta();
 
     private static byte[] lastClassData;
@@ -146,7 +146,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 } else if (!storedMeta.equals(meta)) {
                     CoreTweaks.LOGGER.warn("Transformer cache settings have changed, discarding.");
                 } else {
-                    transformerMap = returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class));
+                    transformerMap.putAll(returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class)));
                 }
 
                 Iterator<Entry<String, TransformerData>> it = transformerMap.entrySet()
