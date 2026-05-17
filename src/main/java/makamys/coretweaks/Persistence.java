@@ -36,7 +36,7 @@ public class Persistence {
 
     public static class Log {
 
-        private File file;
+        private final File file;
         private OutputStream out;
 
         boolean failed = false;

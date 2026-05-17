@@ -13,9 +13,9 @@ public class WrappedAddListenableMap<K, V> implements Map<K, V> {
         boolean onPut(Map<K, V> delegateMap, K key, V value);
     }
 
-    private Map<K, V> o;
+    private final Map<K, V> o;
 
-    private List<MapAddListener<K, V>> listeners = new ArrayList<>();
+    private final List<MapAddListener<K, V>> listeners = new ArrayList<>();
 
     public WrappedAddListenableMap(Map<K, V> original) {
         this.o = original;

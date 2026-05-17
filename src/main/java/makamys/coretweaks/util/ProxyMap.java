@@ -6,7 +6,7 @@ import java.util.Set;
 
 public class ProxyMap<K, V> implements Map<K, V> {
 
-    private Map<K, V> o;
+    private final Map<K, V> o;
 
     public ProxyMap(Map<K, V> original) {
         this.o = original;

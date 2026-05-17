@@ -41,11 +41,11 @@ public class PrefixedClasspathResourceAccelerator {
     private static final boolean DEBUG = Boolean
         .parseBoolean(System.getProperty("coretweaks.debugPrefixedClasspathResourceAccelerator", "false"));
 
-    private boolean skipLibraries = true;
+    private final boolean skipLibraries = true;
 
     private List<Index> classSources;
 
-    private Map<String, List<Index>> directoryOwners = new HashMap<>();
+    private final Map<String, List<Index>> directoryOwners = new HashMap<>();
 
     private void init() {
         long t0 = System.nanoTime();

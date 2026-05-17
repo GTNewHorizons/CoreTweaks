@@ -24,8 +24,8 @@ import makamys.coretweaks.Config.TransformerCache;
 /** Migrates config from 0.2 to 0.3 */
 public class ConfigMigrator {
 
-    private Configuration config;
-    private List<String> warnings = new ArrayList<>();
+    private final Configuration config;
+    private final List<String> warnings = new ArrayList<>();
 
     public ConfigMigrator(Configuration config) {
         this.config = config;
