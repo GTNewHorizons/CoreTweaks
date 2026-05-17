@@ -64,7 +64,7 @@ import makamys.coretweaks.util.Util;
  */
 public class TransformerCache implements IModEventListener, ITransformerWrapperProvider {
 
-    public static TransformerCache instance = new TransformerCache();
+    public static final TransformerCache instance = new TransformerCache();
 
     private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
     private final Map<String, TransformerData> transformerMap = new HashMap<>();
@@ -89,14 +89,12 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private Set<String> transformersToCache = new HashSet<>();
 
-    private final boolean inited = false;
     private volatile boolean savedAndCleared = false;
 
     private static byte[] memoizedHashData;
     private static int memoizedHashValue;
 
     public void init(boolean late) {
-        if (inited) return;
 
         transformersToCache = Sets.newHashSet(Config.transformersToCache.get());
 
@@ -245,17 +243,19 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     private void freeCacheDuringRuntime() {
-        if (savedAndCleared) {
-            return;
+        synchronized (transformerMap) {
+            if (savedAndCleared) {
+                return;
+            }
+            persistCache();
+            transformerMap.clear();
+            myTransformers.clear();
+            lastClassData = null;
+            lastClassDataLength = 0;
+            memoizedHashData = null;
+            memoizedHashValue = 0;
+            savedAndCleared = true;
         }
-        persistCache();
-        transformerMap.clear();
-        myTransformers.clear();
-        lastClassData = null;
-        lastClassDataLength = 0;
-        memoizedHashData = null;
-        memoizedHashValue = 0;
-        savedAndCleared = true;
         LOGGER.info("Lite transformer cache saved and cleared from memory");
     }
 
@@ -387,7 +387,9 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     public void putCached(String transName, String name, String transformedName, byte[] result) {
         TransformerData data = transformerMap.get(transName);
         if (data == null) {
-            transformerMap.put(transName, data = new TransformerData(transName));
+            synchronized (transformerMap) {
+                transformerMap.put(transName, data = new TransformerData(transName));
+            }
         }
         CachedTransformation cached = new CachedTransformation(
             transformedName,
