@@ -24,6 +24,7 @@ import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 
@@ -227,12 +228,15 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     @SubscribeEvent
     public void onTick(TickEvent.ClientTickEvent event) {
         if (event.phase == TickEvent.Phase.START) {
-            clientTicks++;
-            if (clientTicks > 40) {
-                FMLCommonHandler.instance()
-                    .bus()
-                    .unregister(this);
-                freeCacheDuringRuntime();
+            final Minecraft mc = Minecraft.getMinecraft();
+            if (mc.theWorld != null && mc.thePlayer != null) {
+                clientTicks++;
+                if (clientTicks > 40) {
+                    FMLCommonHandler.instance()
+                        .bus()
+                        .unregister(this);
+                    freeCacheDuringRuntime();
+                }
             }
         }
     }
