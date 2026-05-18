@@ -42,6 +42,12 @@ public class CoreTweaksMod {
 
         if (Config.transformerCache.isActive() && Config.transformerCacheMode == Config.TransformerCache.LITE) {
             registerListener(TransformerCache.instance);
+            if (event.getSide()
+                .isClient()) {
+                FMLCommonHandler.instance()
+                    .bus()
+                    .register(TransformerCache.instance);
+            }
         }
         if (Config.jarDiscovererCache.isActive()) {
             registerListener(JarDiscovererCache.instance);
