@@ -15,9 +15,9 @@ public class PrefixedFolderResourceAccelerator {
     private static final boolean DEBUG = Boolean
         .parseBoolean(System.getProperty("coretweaks.debugPrefixedFolderResourceAccelerator", "false"));
 
-    private Map<String, Boolean> directoryExists = new HashMap<>();
+    private final Map<String, Boolean> directoryExists = new HashMap<>();
 
-    private File home;
+    private final File home;
 
     public PrefixedFolderResourceAccelerator(File homeFolder) {
         this.home = homeFolder;

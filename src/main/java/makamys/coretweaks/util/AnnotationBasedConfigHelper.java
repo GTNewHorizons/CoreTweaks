@@ -22,8 +22,8 @@ import makamys.coretweaks.Config.StringList;
 
 public class AnnotationBasedConfigHelper {
 
-    private Logger logger;
-    private Class<?> theConfigClass;
+    private final Logger logger;
+    private final Class<?> theConfigClass;
 
     public AnnotationBasedConfigHelper(Class<?> theConfigClass, Logger logger) {
         this.logger = logger;

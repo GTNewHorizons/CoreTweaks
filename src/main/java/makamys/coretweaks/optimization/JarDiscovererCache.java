@@ -50,8 +50,8 @@ public class JarDiscovererCache implements IModEventListener {
     private Map<String, CachedModInfo> cache = new HashMap<>();
     private int epoch;
 
-    private final byte MAGIC_0 = 0;
-    private final byte VERSION = 2;
+    private static final byte MAGIC_0 = 0;
+    private static final byte VERSION = 2;
 
     private final File DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "jarDiscovererCache.dat");
     private final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "jarDiscoverer.cache");

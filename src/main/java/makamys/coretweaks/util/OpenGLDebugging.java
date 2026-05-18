@@ -25,7 +25,7 @@ public class OpenGLDebugging {
 
     private static final Consumer<String> LINE_LOGGER = (line) -> LOGGER.debug(line);
 
-    public class GLproperty {
+    public static class GLproperty {
 
         public GLproperty(int init_gLconstant, String init_name, String init_description, String init_category,
             String init_fetchCommand) {

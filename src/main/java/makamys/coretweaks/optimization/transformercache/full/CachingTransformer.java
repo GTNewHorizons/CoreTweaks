@@ -45,7 +45,7 @@ import makamys.coretweaks.util.WrappedAddListenableMap.MapAddListener;
  * it runs it through the other transformers, and saves the result. On following occasions, it simply
  * returns the already cached class, with the goal of speeding up load times.<br>
  * <br>
- * 
+ *
  * It works by replacing the LaunchClassLoader's transformer list with a {@link WrappedTransformerList}.
  */
 public class CachingTransformer implements IClassTransformer, MapAddListener<String, Class<?>> {
@@ -54,9 +54,9 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
 
     static class SaveThread extends Thread {
 
-        private CachingTransformer cacheTransformer;
+        private final CachingTransformer cacheTransformer;
 
-        private int saveInterval = 10000;
+        private static final int saveInterval = 10000;
 
         public SaveThread(CachingTransformer ct) {
             this.cacheTransformer = ct;
@@ -78,10 +78,10 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
         }
     }
 
-    private WrappedTransformerList<IClassTransformer> wrappedTransformers;
-    private WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses;
+    private final WrappedTransformerList<IClassTransformer> wrappedTransformers;
+    private final WrappedAddListenableMap<String, Class<?>> wrappedCachedClasses;
 
-    private Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
+    private final Map<String, Optional<byte[]>> cache = new ConcurrentHashMap<>();
     private final static int QUEUE_SIZE = Config.recentCacheSize;
     Optional<Cache<String, byte[]>> recentCache = QUEUE_SIZE < 0 ? Optional.empty()
         : Optional.of(
@@ -89,20 +89,20 @@ public class CachingTransformer implements IClassTransformer, MapAddListener<Str
                 .maximumSize(QUEUE_SIZE)
                 .build());
 
-    private SaveThread saveThread = new SaveThread(this);
+    private final SaveThread saveThread = new SaveThread(this);
 
-    private Set<String> badTransformers = new HashSet<>(
+    private final Set<String> badTransformers = new HashSet<>(
         Arrays.stream(Config.badTransformers.split(","))
             .collect(Collectors.toList()));
-    private Set<String> badClasses = new HashSet<>(
+    private final Set<String> badClasses = new HashSet<>(
         Arrays.stream(Config.badClasses.split(","))
             .collect(Collectors.toList()));
 
     public static final boolean DEBUG_PRINT = Config.verbosity == 2;
-    private static boolean printSave = Config.verbosity >= 1;
+    private static final boolean printSave = Config.verbosity >= 1;
 
     private int lastSaveSize = 0;
-    private BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
+    private final BlockingQueue<String> dirtyClasses = new LinkedBlockingQueue<String>();
 
     private static final File CLASS_CACHE_DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "classCache.dat");
     private static final File CLASS_CACHE_DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerFull.cache");

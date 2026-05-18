@@ -25,6 +25,7 @@ import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
 
@@ -36,6 +37,12 @@ import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeOutput;
 import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
+import cpw.mods.fml.common.FMLCommonHandler;
+import cpw.mods.fml.common.event.FMLServerStartedEvent;
+import cpw.mods.fml.common.eventhandler.SubscribeEvent;
+import cpw.mods.fml.common.gameevent.TickEvent;
+import cpw.mods.fml.relauncher.Side;
+import cpw.mods.fml.relauncher.SideOnly;
 import cpw.mods.fml.repackage.com.nothome.delta.Delta;
 import cpw.mods.fml.repackage.com.nothome.delta.GDiffWriter;
 import lombok.EqualsAndHashCode;
@@ -59,11 +66,11 @@ import makamys.coretweaks.util.Util;
  */
 public class TransformerCache implements IModEventListener, ITransformerWrapperProvider {
 
-    public static TransformerCache instance = new TransformerCache();
+    public static final TransformerCache instance = new TransformerCache();
 
-    private List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
-    private Map<String, TransformerData> transformerMap = new ConcurrentHashMap<>();
-    private CacheMeta meta = new CacheMeta();
+    private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
+    private final Map<String, TransformerData> transformerMap = new ConcurrentHashMap<>();
+    private final CacheMeta meta = new CacheMeta();
 
     private static final byte MAGIC_0 = 0;
     private static final byte VERSION = 2;
@@ -81,7 +88,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private Set<String> transformersToCache = new HashSet<>();
 
-    private boolean inited = false;
+    private volatile boolean savedAndCleared = false;
 
     private static class HashMemo {
 
@@ -92,7 +99,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private static final ThreadLocal<HashMemo> memoizedHash = ThreadLocal.withInitial(HashMemo::new);
 
     public void init(boolean late) {
-        if (inited) return;
 
         transformersToCache = Sets.newHashSet(Config.transformersToCache.get());
 
@@ -147,8 +153,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 } else if (!storedMeta.equals(meta)) {
                     CoreTweaks.LOGGER.warn("Transformer cache settings have changed, discarding.");
                 } else {
-                    transformerMap = new ConcurrentHashMap<>(
-                        returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class)));
+                    transformerMap.putAll(returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class)));
                 }
 
                 Iterator<Entry<String, TransformerData>> it = transformerMap.entrySet()
@@ -201,19 +206,66 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         return map;
     }
 
-    @Override
-    public void onShutdown() {
+    private void persistCache() {
+        if (savedAndCleared) {
+            return;
+        }
+        if (CachedTransformation.diffErrors > 0) {
+            logger().warn(
+                "{} entries have errored. Please report this if it keeps happening!",
+                CachedTransformation.diffErrors);
+        }
         try {
-            if (CachedTransformation.diffErrors > 0) {
-                logger().warn(
-                    CachedTransformation.diffErrors
-                        + " entries have errored. Please report this if it keeps happening!");
-            }
+            final long l = System.currentTimeMillis();
             saveTransformerCache();
             saveProfilingResults();
+            logger().info("Saved transformer cache in {}ms", (System.currentTimeMillis() - l));
         } catch (IOException e) {
-            logger().error("Error in lite transformer cache shutdown hook", e);
+            logger().error("Error saving lite transformer cache", e);
         }
+    }
+
+    private int clientTicks;
+
+    @SideOnly(Side.CLIENT)
+    @SubscribeEvent
+    public void onTick(TickEvent.ClientTickEvent event) {
+        if (event.phase == TickEvent.Phase.START) {
+            final Minecraft mc = Minecraft.getMinecraft();
+            if (mc.theWorld != null && mc.thePlayer != null) {
+                clientTicks++;
+                if (clientTicks > 40) {
+                    FMLCommonHandler.instance()
+                        .bus()
+                        .unregister(this);
+                    freeCacheDuringRuntime();
+                }
+            }
+        }
+    }
+
+    @Override
+    public void onServerStarted(FMLServerStartedEvent event) {
+        freeCacheDuringRuntime();
+    }
+
+    private void freeCacheDuringRuntime() {
+        synchronized (transformerMap) {
+            if (savedAndCleared) {
+                return;
+            }
+            persistCache();
+            transformerMap.clear();
+            myTransformers.clear();
+            memoizedHash.remove();
+            savedAndCleared = true;
+        }
+        LOGGER.info("Lite transformer cache saved and cleared from memory");
+    }
+
+    @Override
+    public void onShutdown() {
+        persistCache();
     }
 
     private void saveTransformerCache() throws IOException {
@@ -223,7 +275,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             DAT.createNewFile();
         }
         logger().info("Saving transformer cache");
-        trimCache((long) Config.liteTransformerCacheMaxSizeMB * 1024l * 1024l);
+        trimCache((long) Config.liteTransformerCacheMaxSizeMB * 1024L * 1024L);
         try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
             kryo.writeObject(output, MAGIC_0);
             kryo.writeObject(output, VERSION);
@@ -266,7 +318,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     private int sortByAge(CachedTransformation a, CachedTransformation b) {
-        return a.lastAccessed < b.lastAccessed ? -1 : a.lastAccessed > b.lastAccessed ? 1 : 0;
+        return Integer.compare(a.lastAccessed, b.lastAccessed);
     }
 
     private void saveProfilingResults() throws IOException {
@@ -279,9 +331,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 int runs = 0;
                 int misses = 0;
                 if (transformer instanceof CachedTransformerWrapper) {
-                    CachedTransformerWrapper proxy = (CachedTransformerWrapper) transformer;
-                    runs = proxy.runs;
-                    misses = proxy.misses;
+                    runs = transformer.runs;
+                    misses = transformer.misses;
                 }
                 fw.write(className + "," + name + "," + runs + "," + misses + "\n");
             }
@@ -324,17 +375,19 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     public void putCached(String transName, String name, String transformedName, byte[] preTransformBytes,
         byte[] result) {
-        TransformerData data = transformerMap.get(transName);
-        if (data == null) {
-            transformerMap.put(transName, data = new TransformerData(transName));
-        }
-        CachedTransformation cached = new CachedTransformation(
-            transformedName,
-            preTransformBytes,
-            nullSafeLength(preTransformBytes),
-            result);
-        if (cached.isValid()) {
-            data.transformationMap.put(transformedName, cached);
+        synchronized (transformerMap) {
+            TransformerData data = transformerMap.get(transName);
+            if (data == null) {
+                transformerMap.put(transName, data = new TransformerData(transName));
+            }
+            CachedTransformation cached = new CachedTransformation(
+                transformedName,
+                preTransformBytes,
+                nullSafeLength(preTransformBytes),
+                result);
+            if (cached.isValid()) {
+                data.transformationMap.put(transformedName, cached);
+            }
         }
     }
 

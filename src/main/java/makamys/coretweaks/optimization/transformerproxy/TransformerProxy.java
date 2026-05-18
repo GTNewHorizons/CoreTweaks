@@ -18,7 +18,7 @@ public class TransformerProxy implements IClassTransformer, IWrapper<IClassTrans
 
     protected IClassTransformer original;
 
-    private List<ITransformerWrapper> wrappers = new ArrayList<>();
+    private final List<ITransformerWrapper> wrappers = new ArrayList<>();
     private int nextWrapper;
 
     public void addWrapper(ITransformerWrapper wrapper) {
