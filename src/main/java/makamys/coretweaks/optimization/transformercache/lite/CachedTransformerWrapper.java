@@ -1,5 +1,7 @@
 package makamys.coretweaks.optimization.transformercache.lite;
 
+import java.util.Map;
+
 import javax.annotation.Nonnull;
 
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache.TransformerData;
@@ -13,6 +15,7 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
     private final String transformerName;
     private int runs = 0;
     private int misses = 0;
+    private volatile boolean stopped = false;
 
     public CachedTransformerWrapper(TransformerData data, String transformerName) {
         this.data = data;
@@ -22,18 +25,23 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
     @Override
     public byte[] wrapTransform(String name, String transformedName, byte[] basicClass, TransformerProxy proxy) {
         if (basicClass == null) return null;
+        if (this.stopped) {
+            return proxy.invokeNextHandler(name, transformedName, basicClass);
+        }
         runs++;
-        byte[] result = this.getCached(transformedName, basicClass);
+        final Map<String, CachedTransformation> map = this.data.transformationMap;
+        byte[] result = getCached(map, transformedName, basicClass);
         if (result == null) {
             misses++;
             result = proxy.invokeNextHandler(name, transformedName, basicClass);
-            this.putCached(transformedName, basicClass, result != null ? result.clone() : null);
+            putCached(map, transformedName, basicClass, result != null ? result.clone() : null);
         }
         return result;
     }
 
-    private byte[] getCached(String transformedName, @Nonnull byte[] basicClass) {
-        CachedTransformation cached = this.data.transformationMap.get(transformedName);
+    private static byte[] getCached(Map<String, CachedTransformation> map, String transformedName,
+        @Nonnull byte[] basicClass) {
+        CachedTransformation cached = map.get(transformedName);
         if (cached != null && cached.basicClassMatches(basicClass)) {
             cached.updateAccessTime();
             if (!cached.isDiff()) {
@@ -41,7 +49,7 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
             }
             byte[] transformedBytes = cached.getTransformedBytes(basicClass);
             if (transformedBytes == null) {
-                this.data.transformationMap.remove(transformedName);
+                map.remove(transformedName);
                 return null;
             }
             return transformedBytes;
@@ -49,14 +57,19 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
         return null;
     }
 
-    private void putCached(String transformedName, @Nonnull byte[] basicClass, byte[] transformedBytes) {
+    private static void putCached(Map<String, CachedTransformation> map, String transformedName,
+        @Nonnull byte[] basicClass, byte[] transformedBytes) {
         CachedTransformation cached = new CachedTransformation(transformedName, basicClass, transformedBytes);
         if (cached.isValid()) {
-            this.data.transformationMap.put(transformedName, cached);
+            map.put(transformedName, cached);
         }
     }
 
     public String getProfileString() {
         return transformerName + "," + runs + "," + misses;
+    }
+
+    public void stopTransformer() {
+        this.stopped = true;
     }
 }

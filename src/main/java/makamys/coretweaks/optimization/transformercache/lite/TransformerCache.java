@@ -77,11 +77,11 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache");
     private final File DAT_ERRORED = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache.errored");
     private final File CACHE_PROFILER_CSV = Util.childFile(CoreTweaks.OUT_DIR, "transformercache_profiler.csv");
-    private final Kryo kryo = new Kryo();
+    private Kryo kryo;
 
     private final Set<String> transformersToCache = new HashSet<>();
 
-    private volatile boolean savedAndCleared = false;
+    private volatile boolean stoppedTransformer = false;
 
     private TransformerCache() {}
 
@@ -112,6 +112,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private void loadData() {
         long t0 = System.nanoTime();
 
+        kryo = new Kryo();
         kryo.register(TransformerCache.CacheMeta.class);
         kryo.register(ConcurrentHashMap.class);
         kryo.register(TransformerCache.TransformerData.class);
@@ -194,28 +195,28 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         freeCacheDuringRuntime();
     }
 
-    private void freeCacheDuringRuntime() {
-        synchronized (transformerMap) {
-            if (savedAndCleared) {
-                return;
-            }
-            persistCache();
-            transformerMap.clear();
-            myTransformers.clear();
-            savedAndCleared = true;
+    private synchronized void freeCacheDuringRuntime() {
+        if (stoppedTransformer) {
+            return;
         }
+        stoppedTransformer = true;
+        myTransformers.forEach(CachedTransformerWrapper::stopTransformer);
+        saveCache();
+        transformerMap.values()
+            .forEach(t -> t.transformationMap = Collections.emptyMap());
+        transformerMap.clear();
         LOGGER.info("Lite transformer cache saved and cleared from memory");
     }
 
     @Override
     public void onShutdown() {
-        persistCache();
-    }
-
-    private void persistCache() {
-        if (savedAndCleared) {
+        if (stoppedTransformer) {
             return;
         }
+        saveCache();
+    }
+
+    private void saveCache() {
         if (CachedTransformation.diffErrors > 0) {
             logger().warn(
                 "{} entries have errored. Please report this if it keeps happening!",
@@ -245,6 +246,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             kryo.writeObject(output, meta);
             kryo.writeObject(output, transformerMap);
         }
+        kryo = null;
     }
 
     private void trimCache(long maxSize) {
