@@ -16,13 +16,13 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Map.Entry;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 
 import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.IClassTransformer;
@@ -68,14 +68,11 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     public static final TransformerCache instance = new TransformerCache();
 
     private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
-    private final Map<String, TransformerData> transformerMap = new HashMap<>();
+    private final Map<String, TransformerData> transformerMap = new ConcurrentHashMap<>();
     private final CacheMeta meta = new CacheMeta();
 
-    private static byte[] lastClassData;
-    private static int lastClassDataLength;
-
     private static final byte MAGIC_0 = 0;
-    private static final byte VERSION = 2;
+    private static final byte VERSION = 3;
 
     private static final File DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "transformerCache.dat");
     private static final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache");
@@ -84,7 +81,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         .childFile(CoreTweaks.OUT_DIR, "transformercache_profiler.csv");
     private Kryo kryo;
 
-    private static final Delta delta = new Delta();
+    private static final ThreadLocal<Delta> deltaThreadLocal = ThreadLocal.withInitial(Delta::new);
 
     private static final byte[] NULL_BYTE_ARRAY = new byte[0];
 
@@ -92,8 +89,13 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private volatile boolean savedAndCleared = false;
 
-    private static byte[] memoizedHashData;
-    private static int memoizedHashValue;
+    private static class HashMemo {
+
+        byte[] data;
+        int value;
+    }
+
+    private static final ThreadLocal<HashMemo> memoizedHash = ThreadLocal.withInitial(HashMemo::new);
 
     public void init(boolean late) {
 
@@ -129,7 +131,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
         kryo = new Kryo();
         kryo.register(TransformerCache.CacheMeta.class);
-        kryo.register(HashMap.class);
+        kryo.register(ConcurrentHashMap.class);
         kryo.register(TransformerCache.TransformerData.class);
         kryo.register(TransformerCache.TransformerData.CachedTransformation.class);
         kryo.register(byte[].class);
@@ -150,7 +152,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 } else if (!storedMeta.equals(meta)) {
                     CoreTweaks.LOGGER.warn("Transformer cache settings have changed, discarding.");
                 } else {
-                    transformerMap.putAll(returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class)));
+                    transformerMap.putAll(kryo.readObject(is, ConcurrentHashMap.class));
                 }
 
                 Iterator<Entry<String, TransformerData>> it = transformerMap.entrySet()
@@ -191,16 +193,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             .stream()
             .mapToInt(d -> d.transformationMap.size())
             .sum();
-    }
-
-    private static Map<String, TransformerData> returnVerifiedTransformerMap(Map<String, TransformerData> map) {
-        if (map.containsKey(null)) {
-            throw new RuntimeException("Map contains null key");
-        }
-        if (map.containsValue(null)) {
-            throw new RuntimeException("Map contains null value");
-        }
-        return map;
     }
 
     private void persistCache() {
@@ -254,10 +246,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             persistCache();
             transformerMap.clear();
             myTransformers.clear();
-            lastClassData = null;
-            lastClassDataLength = 0;
-            memoizedHashData = null;
-            memoizedHashValue = 0;
+            memoizedHash.remove();
             savedAndCleared = true;
         }
         LOGGER.info("Lite transformer cache saved and cleared from memory");
@@ -346,8 +335,15 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             if (trans != null) {
                 if (nullSafeLength(basicClass) == trans.preLength && calculateHash(basicClass) == trans.preHash) {
                     trans.lastAccessed = now();
-                    return trans.postHash == trans.preHash ? toNullableByteArray(basicClass)
-                        : trans.getNewClass(basicClass);
+                    if (trans.postHash == trans.preHash) {
+                        return toNullableByteArray(basicClass);
+                    }
+                    byte[] result = trans.getNewClass(basicClass);
+                    if (result == null) {
+                        transData.transformationMap.remove(transformedName);
+                        return null;
+                    }
+                    return result;
                 }
             }
         }
@@ -366,29 +362,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         return array == null ? -1 : array.length;
     }
 
-    public void prePutCached(String transName, String name, String transformedName, byte[] basicClass) {
-        putLastClassData(basicClass);
-    }
-
-    private void putLastClassData(byte[] data) {
-        if (data != null) {
-            if (lastClassData == null || lastClassData.length < data.length) {
-                int newSize = 1;
-                while (newSize < data.length) {
-                    newSize *= 2;
-                }
-                lastClassData = new byte[newSize];
-            }
-            System.arraycopy(data, 0, lastClassData, 0, data.length);
-            lastClassDataLength = data.length;
-        } else {
-            lastClassData = null;
-            lastClassDataLength = 0;
-        }
-    }
-
-    /** MUST be preceded with a call to prePutCached. */
-    public void putCached(String transName, String name, String transformedName, byte[] result) {
+    public void putCached(String transName, String name, String transformedName, byte[] preTransformBytes,
+        byte[] result) {
         synchronized (transformerMap) {
             TransformerData data = transformerMap.get(transName);
             if (data == null) {
@@ -396,8 +371,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             }
             CachedTransformation cached = new CachedTransformation(
                 transformedName,
-                lastClassData,
-                lastClassDataLength,
+                preTransformBytes,
+                nullSafeLength(preTransformBytes),
                 result);
             if (cached.isValid()) {
                 data.transformationMap.put(transformedName, cached);
@@ -410,15 +385,17 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     public static int calculateHash(byte[] data, int len) {
-        if (data == memoizedHashData) {
-            return memoizedHashValue;
+        HashMemo memo = memoizedHash.get();
+        if (data == memo.data) {
+            return memo.value;
         }
-        memoizedHashData = data;
-        memoizedHashValue = data == null ? -1
+        int hash = data == null ? -1
             : Hashing.adler32()
                 .hashBytes(data, 0, len)
                 .asInt();
-        return memoizedHashValue;
+        memo.data = data;
+        memo.value = hash;
+        return hash;
     }
 
     private static int now() {
@@ -435,7 +412,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     public static class TransformerData {
 
         String transformerClassName;
-        Map<String, CachedTransformation> transformationMap = new HashMap<>();
+        Map<String, CachedTransformation> transformationMap = new ConcurrentHashMap<>();
 
         public TransformerData(String transformerClassName) {
             this.transformerClassName = transformerClassName;
@@ -482,10 +459,11 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
                 try {
                     ByteArrayOutputStream os = new ByteArrayOutputStream();
-                    delta.compute(
-                        new FastByteBufferSeekableSource(ByteBuffer.wrap(source, 0, sourceLen)),
-                        new ByteArrayInputStream(target),
-                        new GDiffWriter(os));
+                    deltaThreadLocal.get()
+                        .compute(
+                            new FastByteBufferSeekableSource(ByteBuffer.wrap(source, 0, sourceLen)),
+                            new ByteArrayInputStream(target),
+                            new GDiffWriter(os));
                     return os.toByteArray();
                 } catch (ClosedByInterruptException e) {
                     // nothome delta library uses interruptible channels which throw an error if the thread gets
@@ -508,7 +486,20 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                     return diff;
                 }
                 byte[] newClass = new byte[postLength];
-                InMemoryGDiffPatcher.patch(source, diff, newClass);
+                try {
+                    InMemoryGDiffPatcher.patch(source, diff, newClass);
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to apply cached diff for " + targetClassName + ", discarding entry");
+                    return null;
+                }
+                int actualHash = Hashing.adler32()
+                    .hashBytes(newClass)
+                    .asInt();
+                if (actualHash != postHash) {
+                    LOGGER
+                        .warn("Hash mismatch after applying cached diff for " + targetClassName + ", discarding entry");
+                    return null;
+                }
                 return newClass;
             }
 
