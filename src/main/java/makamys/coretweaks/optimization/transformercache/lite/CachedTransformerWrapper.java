@@ -3,14 +3,14 @@ package makamys.coretweaks.optimization.transformercache.lite;
 import static makamys.coretweaks.optimization.transformercache.lite.TransformerCache.calculateHash;
 import static makamys.coretweaks.optimization.transformercache.lite.TransformerCache.nullSafeLength;
 
+import javax.annotation.Nonnull;
+
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache.TransformerData;
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache.TransformerData.CachedTransformation;
 import makamys.coretweaks.optimization.transformerproxy.ITransformerWrapper;
 import makamys.coretweaks.optimization.transformerproxy.TransformerProxy;
 
 public class CachedTransformerWrapper implements ITransformerWrapper {
-
-    private static final byte[] NULL_BYTE_ARRAY = new byte[0];
 
     private final TransformerData data;
     private final String transformerName;
@@ -24,6 +24,7 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
 
     @Override
     public byte[] wrapTransform(String name, String transformedName, byte[] basicClass, TransformerProxy proxy) {
+        if (basicClass == null) return null;
         runs++;
         byte[] result = this.getCached(transformedName, basicClass);
         if (result == null) {
@@ -31,16 +32,16 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
             result = proxy.invokeNextHandler(name, transformedName, basicClass);
             this.putCached(transformedName, basicClass, result != null ? result.clone() : null);
         }
-        return fromNullableByteArray(result);
+        return result;
     }
 
-    private byte[] getCached(String transformedName, byte[] basicClass) {
+    private byte[] getCached(String transformedName, @Nonnull byte[] basicClass) {
         CachedTransformation trans = this.data.transformationMap.get(transformedName);
         if (trans != null) {
             if (nullSafeLength(basicClass) == trans.preLength && calculateHash(basicClass) == trans.preHash) {
                 trans.updateAccessTime();
                 if (trans.postHash == trans.preHash) {
-                    return toNullableByteArray(basicClass);
+                    return basicClass;
                 }
                 byte[] result = trans.getNewClass(basicClass);
                 if (result == null) {
@@ -53,7 +54,7 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
         return null;
     }
 
-    private void putCached(String transformedName, byte[] basicClass, byte[] transformedBytes) {
+    private void putCached(String transformedName, @Nonnull byte[] basicClass, byte[] transformedBytes) {
         CachedTransformation cached = new CachedTransformation(
             transformedName,
             basicClass,
@@ -62,14 +63,6 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
         if (cached.isValid()) {
             this.data.transformationMap.put(transformedName, cached);
         }
-    }
-
-    private static byte[] toNullableByteArray(byte[] array) {
-        return array == null ? NULL_BYTE_ARRAY : array;
-    }
-
-    private static byte[] fromNullableByteArray(byte[] array) {
-        return array == NULL_BYTE_ARRAY ? null : array;
     }
 
     public String getProfileString() {
