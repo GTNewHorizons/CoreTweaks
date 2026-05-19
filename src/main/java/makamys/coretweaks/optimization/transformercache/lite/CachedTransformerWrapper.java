@@ -1,8 +1,5 @@
 package makamys.coretweaks.optimization.transformercache.lite;
 
-import static makamys.coretweaks.optimization.transformercache.lite.TransformerCache.calculateHash;
-import static makamys.coretweaks.optimization.transformercache.lite.TransformerCache.nullSafeLength;
-
 import javax.annotation.Nonnull;
 
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache.TransformerData;
@@ -36,20 +33,18 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
     }
 
     private byte[] getCached(String transformedName, @Nonnull byte[] basicClass) {
-        CachedTransformation trans = this.data.transformationMap.get(transformedName);
-        if (trans != null) {
-            if (nullSafeLength(basicClass) == trans.preLength && calculateHash(basicClass) == trans.preHash) {
-                trans.updateAccessTime();
-                if (trans.postHash == trans.preHash) {
-                    return basicClass;
-                }
-                byte[] result = trans.getNewClass(basicClass);
-                if (result == null) {
-                    this.data.transformationMap.remove(transformedName);
-                    return null;
-                }
-                return result;
+        CachedTransformation cached = this.data.transformationMap.get(transformedName);
+        if (cached != null && cached.basicClassMatches(basicClass)) {
+            cached.updateAccessTime();
+            if (cached.preHash == cached.postHash) {
+                return basicClass;
             }
+            byte[] result = cached.getNewClass(basicClass);
+            if (result == null) {
+                this.data.transformationMap.remove(transformedName);
+                return null;
+            }
+            return result;
         }
         return null;
     }

@@ -330,7 +330,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         boolean enableDiffs = Config.useDiffsInTransformerCache;
     }
 
-    public static class TransformerData {
+    public final static class TransformerData {
 
         String transformerClassName;
         Map<String, CachedTransformation> transformationMap = new ConcurrentHashMap<>();
@@ -342,7 +342,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         @SuppressWarnings("unused")
         public TransformerData() {}
 
-        public static class CachedTransformation {
+        public final static class CachedTransformation {
 
             private static final byte[] INVALID_RESULT = new byte[] {};
 
@@ -353,31 +353,65 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             int preHash;
             int postLength;
             int postHash;
+            /**
+             * This field is the actual diff if the enableDiffs config is enabled, otherwise it's the whole output class
+             */
             byte[] diff;
             int lastAccessed;
 
             @SuppressWarnings("unused")
             public CachedTransformation() {}
 
-            public boolean isValid() {
-                return diff != INVALID_RESULT;
-            }
-
             public CachedTransformation(String targetClassName, @Nonnull byte[] basicClass, byte[] transformedBytes) {
                 this.targetClassName = targetClassName;
-                this.preLength = nullSafeLength(basicClass);
-                this.preHash = calculateHash(basicClass, this.preLength);
+                this.preLength = basicClass.length;
+                this.preHash = calculateHash(basicClass, basicClass.length);
                 this.postLength = nullSafeLength(transformedBytes);
-                this.postHash = calculateHash(transformedBytes);
+                this.postHash = calculateHash(transformedBytes, this.postLength);
                 if (preHash != postHash) {
                     diff = generateDiff(basicClass, this.preLength, transformedBytes, targetClassName);
                 }
                 this.updateAccessTime();
             }
 
+            public boolean isValid() {
+                return diff != INVALID_RESULT;
+            }
+
             public void updateAccessTime() {
                 // TODO update the format in 6055
                 this.lastAccessed = (int) (System.currentTimeMillis() / 1000 / 60);
+            }
+
+            public boolean basicClassMatches(@Nonnull byte[] basicClass) {
+                return basicClass.length == this.preLength
+                    && calculateHash(basicClass, basicClass.length) == this.preHash;
+            }
+
+            @SuppressWarnings("UnstableApiUsage")
+            public byte[] getNewClass(byte[] source) {
+                if (source == null || !TransformerCache.instance.meta.enableDiffs) {
+                    return diff;
+                }
+                byte[] newClass = new byte[postLength];
+                try {
+                    InMemoryGDiffPatcher.patch(source, diff, newClass);
+                } catch (Exception e) {
+                    LOGGER.warn("Failed to apply cached diff for {}, discarding entry", targetClassName);
+                    return null;
+                }
+                int actualHash = Hashing.adler32()
+                    .hashBytes(newClass)
+                    .asInt();
+                if (actualHash != postHash) {
+                    LOGGER.warn("Hash mismatch after applying cached diff for {}, discarding entry", targetClassName);
+                    return null;
+                }
+                return newClass;
+            }
+
+            public int getEstimatedSize() {
+                return targetClassName.length() + 4 + 4 + 4 + (diff != null ? diff.length : 0) + 4;
             }
 
             private static final ThreadLocal<Delta> deltaThreadLocal = ThreadLocal.withInitial(Delta::new);
@@ -410,32 +444,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 }
                 diffErrors++;
                 return INVALID_RESULT;
-            }
-
-            @SuppressWarnings("UnstableApiUsage")
-            public byte[] getNewClass(byte[] source) {
-                if (source == null || !TransformerCache.instance.meta.enableDiffs) {
-                    return diff;
-                }
-                byte[] newClass = new byte[postLength];
-                try {
-                    InMemoryGDiffPatcher.patch(source, diff, newClass);
-                } catch (Exception e) {
-                    LOGGER.warn("Failed to apply cached diff for {}, discarding entry", targetClassName);
-                    return null;
-                }
-                int actualHash = Hashing.adler32()
-                    .hashBytes(newClass)
-                    .asInt();
-                if (actualHash != postHash) {
-                    LOGGER.warn("Hash mismatch after applying cached diff for {}, discarding entry", targetClassName);
-                    return null;
-                }
-                return newClass;
-            }
-
-            public int getEstimatedSize() {
-                return targetClassName.length() + 4 + 4 + 4 + (diff != null ? diff.length : 0) + 4;
             }
         }
     }
