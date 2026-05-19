@@ -156,10 +156,10 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             }
             long t1 = System.nanoTime();
             LOGGER
-                .debug("Loaded lite transformer cache with {} entries in {}s", getSize(), (t1 - t0) / 1_000_000_000.0);
+                .info("Loaded lite transformer cache with {} entries in {}s", getSize(), (t1 - t0) / 1_000_000_000.0);
         } else {
             long t1 = System.nanoTime();
-            LOGGER.debug("Created new lite transformer cache in {}s", (t1 - t0) / 1_000_000_000.0);
+            LOGGER.info("Created new lite transformer cache in {}s", (t1 - t0) / 1_000_000_000.0);
         }
     }
 
