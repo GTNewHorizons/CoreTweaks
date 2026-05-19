@@ -137,7 +137,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         kryo.register(byte[].class);
 
         if (DAT_OLD.exists() && !DAT.exists()) {
-            LOGGER.info("Migrating class cache: " + DAT_OLD + " -> " + DAT);
+            LOGGER.info("Migrating class cache: {} -> {}", DAT_OLD, DAT);
             DAT_OLD.renameTo(DAT);
         }
 
@@ -170,21 +170,17 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 e.printStackTrace();
             } catch (Exception e) {
                 CoreTweaks.LOGGER.error(
-                    "There was an error reading the transformer cache. A new one will be created. The previous one has been saved as "
-                        + DAT_ERRORED.getName()
-                        + " for inspection.");
+                    "There was an error reading the transformer cache. A new one will be created. The previous one has been saved as {} for inspection.",
+                    DAT_ERRORED.getName());
                 DAT.renameTo(DAT_ERRORED);
                 e.printStackTrace();
             }
             long t1 = System.nanoTime();
-            LOGGER.debug(
-                "Loaded lite transformer cache with " + getSize()
-                    + " entries in "
-                    + ((t1 - t0) / 1_000_000_000.0)
-                    + "s");
+            LOGGER
+                .debug("Loaded lite transformer cache with {} entries in {}s", getSize(), (t1 - t0) / 1_000_000_000.0);
         } else {
             long t1 = System.nanoTime();
-            LOGGER.debug("Created new lite transformer cache in " + ((t1 - t0) / 1_000_000_000.0) + "s");
+            LOGGER.debug("Created new lite transformer cache in {}s", (t1 - t0) / 1_000_000_000.0);
         }
     }
 
@@ -328,7 +324,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         }
     }
 
-    public byte[] getCached(String transName, String name, String transformedName, byte[] basicClass) {
+    public byte[] getCached(String transName, String transformedName, byte[] basicClass) {
         TransformerData transData = transformerMap.get(transName);
         if (transData != null) {
             CachedTransformation trans = transData.transformationMap.get(transformedName);
@@ -380,11 +376,12 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         }
     }
 
-    public static int calculateHash(byte[] data) {
+    private static int calculateHash(byte[] data) {
         return calculateHash(data, nullSafeLength(data));
     }
 
-    public static int calculateHash(byte[] data, int len) {
+    @SuppressWarnings("UnstableApiUsage")
+    private static int calculateHash(byte[] data, int len) {
         HashMemo memo = memoizedHash.get();
         if (data == memo.data) {
             return memo.value;
@@ -469,18 +466,20 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                     // nothome delta library uses interruptible channels which throw an error if the thread gets
                     // interrupted.
                     // No big deal, it's a race condition so it probably won't happen next time.
-                    LOGGER.debug("Failed to generate diff for class " + name + ", thread was interrupted.");
+                    LOGGER.debug("Failed to generate diff for class {}, thread was interrupted.", name);
                 } catch (Exception e) {
                     // Unknown exception. We want to know more about this, but it's not worth crashing over if it's a
                     // rare issue.
                     LOGGER.error(
-                        "Failed to generate diff for class " + name + ". Please report this if it keeps happening!");
-                    e.printStackTrace();
+                        "Failed to generate diff for class {}. Please report this if it keeps happening!",
+                        name,
+                        e);
                 }
                 diffErrors++;
                 return INVALID_RESULT;
             }
 
+            @SuppressWarnings("UnstableApiUsage")
             public byte[] getNewClass(byte[] source) {
                 if (source == null || !TransformerCache.instance.meta.enableDiffs) {
                     return diff;

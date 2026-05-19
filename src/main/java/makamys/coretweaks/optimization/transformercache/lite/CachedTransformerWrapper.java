@@ -7,6 +7,7 @@ import makamys.coretweaks.optimization.transformerproxy.TransformerProxy;
 
 public class CachedTransformerWrapper implements ITransformerWrapper {
 
+    private final String transformerName;
     public int runs = 0;
     public int misses = 0;
 
@@ -15,12 +16,10 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
             .getCanonicalName();
     }
 
-    private final String transformerName;
-
     @Override
     public byte[] wrapTransform(String name, String transformedName, byte[] basicClass, TransformerProxy proxy) {
         runs++;
-        byte[] result = TransformerCache.instance.getCached(transformerName, name, transformedName, basicClass);
+        byte[] result = TransformerCache.instance.getCached(transformerName, transformedName, basicClass);
         if (result == null) {
             misses++;
             result = proxy.invokeNextHandler(name, transformedName, basicClass);
