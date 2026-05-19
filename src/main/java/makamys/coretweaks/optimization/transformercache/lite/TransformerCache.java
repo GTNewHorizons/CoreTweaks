@@ -64,8 +64,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     public static final TransformerCache instance = new TransformerCache();
 
-    private static final byte[] NULL_BYTE_ARRAY = new byte[0];
-
     private static final byte MAGIC_0 = 0;
     private static final byte VERSION = 3;
 
@@ -96,10 +94,11 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     @Override
     public ITransformerWrapper wrap(IClassTransformer transformer) {
-        if (transformersToCache.contains(
-            transformer.getClass()
-                .getCanonicalName())) {
-            CachedTransformerWrapper proxy = new CachedTransformerWrapper(transformer);
+        final String transName = transformer.getClass()
+            .getCanonicalName();
+        if (transformersToCache.contains(transName)) {
+            final TransformerData data = transformerMap.computeIfAbsent(transName, TransformerData::new);
+            final CachedTransformerWrapper proxy = new CachedTransformerWrapper(data, transName);
             myTransformers.add(proxy);
             return proxy;
         } else {
@@ -155,8 +154,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 e.printStackTrace();
             }
             long t1 = System.nanoTime();
-            LOGGER
-                .info("Loaded lite transformer cache with {} entries in {}s", getSize(), (t1 - t0) / 1_000_000_000.0);
+            LOGGER.info("Loaded lite transformer cache with {} entries in {}s", getSize(), (t1 - t0) / 1_000_000_000.0);
         } else {
             long t1 = System.nanoTime();
             LOGGER.info("Created new lite transformer cache in {}s", (t1 - t0) / 1_000_000_000.0);
@@ -296,58 +294,11 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         }
     }
 
-    public byte[] getCached(String transName, String transformedName, byte[] basicClass) {
-        TransformerData transData = transformerMap.get(transName);
-        if (transData != null) {
-            CachedTransformation trans = transData.transformationMap.get(transformedName);
-            if (trans != null) {
-                if (nullSafeLength(basicClass) == trans.preLength && calculateHash(basicClass) == trans.preHash) {
-                    trans.lastAccessed = now();
-                    if (trans.postHash == trans.preHash) {
-                        return toNullableByteArray(basicClass);
-                    }
-                    byte[] result = trans.getNewClass(basicClass);
-                    if (result == null) {
-                        transData.transformationMap.remove(transformedName);
-                        return null;
-                    }
-                    return result;
-                }
-            }
-        }
-        return null;
-    }
-
-    public static byte[] toNullableByteArray(byte[] array) {
-        return array == null ? NULL_BYTE_ARRAY : array;
-    }
-
-    public static byte[] fromNullableByteArray(byte[] array) {
-        return array == NULL_BYTE_ARRAY ? null : array;
-    }
-
-    private static int nullSafeLength(byte[] array) {
+    public static int nullSafeLength(byte[] array) {
         return array == null ? -1 : array.length;
     }
 
-    public void putCached(String transName, String transformedName, byte[] preTransformBytes, byte[] result) {
-        synchronized (transformerMap) {
-            TransformerData data = transformerMap.get(transName);
-            if (data == null) {
-                transformerMap.put(transName, data = new TransformerData(transName));
-            }
-            CachedTransformation cached = new CachedTransformation(
-                transformedName,
-                preTransformBytes,
-                nullSafeLength(preTransformBytes),
-                result);
-            if (cached.isValid()) {
-                data.transformationMap.put(transformedName, cached);
-            }
-        }
-    }
-
-    private static int calculateHash(byte[] data) {
+    public static int calculateHash(byte[] data) {
         return calculateHash(data, nullSafeLength(data));
     }
 
@@ -372,11 +323,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         memo.data = data;
         memo.value = hash;
         return hash;
-    }
-
-    private static int now() {
-        // TODO update the format in 6055
-        return (int) (System.currentTimeMillis() / 1000 / 60);
     }
 
     @EqualsAndHashCode
@@ -427,7 +373,12 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 if (preHash != postHash) {
                     diff = generateDiff(source, sourceLen, target, targetClassName);
                 }
-                this.lastAccessed = now();
+                this.updateAccessTime();
+            }
+
+            public void updateAccessTime() {
+                // TODO update the format in 6055
+                this.lastAccessed = (int) (System.currentTimeMillis() / 1000 / 60);
             }
 
             private static final ThreadLocal<Delta> deltaThreadLocal = ThreadLocal.withInitial(Delta::new);
