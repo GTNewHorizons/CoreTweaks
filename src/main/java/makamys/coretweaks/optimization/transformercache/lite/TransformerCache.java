@@ -308,18 +308,12 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     private void saveProfilingResults() throws IOException {
         try (FileWriter fw = new FileWriter(TRANSFORMERCACHE_PROFILER_CSV)) {
-            fw.write("class,name,runs,misses\n");
+            fw.write("transformer,runs,misses\n");
             for (CachedTransformerWrapper transformer : myTransformers) {
-                String className = transformer.getClass()
-                    .getCanonicalName();
-                String name = transformer.toString();
-                int runs = 0;
-                int misses = 0;
-                if (transformer instanceof CachedTransformerWrapper) {
-                    runs = transformer.runs;
-                    misses = transformer.misses;
-                }
-                fw.write(className + "," + name + "," + runs + "," + misses + "\n");
+                final String name = transformer.transformerName;
+                final int runs = transformer.runs;
+                final int misses = transformer.misses;
+                fw.write(name + "," + runs + "," + misses + "\n");
             }
         }
     }
@@ -358,8 +352,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         return array == null ? -1 : array.length;
     }
 
-    public void putCached(String transName, String name, String transformedName, byte[] preTransformBytes,
-        byte[] result) {
+    public void putCached(String transName, String transformedName, byte[] preTransformBytes, byte[] result) {
         synchronized (transformerMap) {
             TransformerData data = transformerMap.get(transName);
             if (data == null) {
