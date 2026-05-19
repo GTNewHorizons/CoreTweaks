@@ -22,6 +22,8 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
+import javax.annotation.Nonnull;
+
 import net.minecraft.client.Minecraft;
 import net.minecraft.launchwrapper.IClassTransformer;
 import net.minecraft.launchwrapper.Launch;
@@ -361,14 +363,14 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 return diff != INVALID_RESULT;
             }
 
-            public CachedTransformation(String targetClassName, byte[] source, int sourceLen, byte[] target) {
+            public CachedTransformation(String targetClassName, @Nonnull byte[] basicClass, byte[] transformedBytes) {
                 this.targetClassName = targetClassName;
-                this.preHash = calculateHash(source, sourceLen);
-                this.preLength = sourceLen;
-                this.postLength = nullSafeLength(target);
-                this.postHash = calculateHash(target);
+                this.preLength = nullSafeLength(basicClass);
+                this.preHash = calculateHash(basicClass, this.preLength);
+                this.postLength = nullSafeLength(transformedBytes);
+                this.postHash = calculateHash(transformedBytes);
                 if (preHash != postHash) {
-                    diff = generateDiff(source, sourceLen, target, targetClassName);
+                    diff = generateDiff(basicClass, this.preLength, transformedBytes, targetClassName);
                 }
                 this.updateAccessTime();
             }

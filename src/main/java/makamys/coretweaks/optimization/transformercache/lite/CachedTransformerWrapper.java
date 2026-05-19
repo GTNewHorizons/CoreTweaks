@@ -55,11 +55,7 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
     }
 
     private void putCached(String transformedName, @Nonnull byte[] basicClass, byte[] transformedBytes) {
-        CachedTransformation cached = new CachedTransformation(
-            transformedName,
-            basicClass,
-            nullSafeLength(basicClass),
-            transformedBytes);
+        CachedTransformation cached = new CachedTransformation(transformedName, basicClass, transformedBytes);
         if (cached.isValid()) {
             this.data.transformationMap.put(transformedName, cached);
         }
