@@ -72,7 +72,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private final CacheMeta meta = new CacheMeta();
 
     private static final byte MAGIC_0 = 0;
-    private static final byte VERSION = 2;
+    private static final byte VERSION = 3;
 
     private static final File DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "transformerCache.dat");
     private static final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache");
