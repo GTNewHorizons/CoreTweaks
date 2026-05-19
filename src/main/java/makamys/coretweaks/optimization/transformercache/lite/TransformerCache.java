@@ -16,7 +16,6 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -132,7 +131,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
         kryo = new Kryo();
         kryo.register(TransformerCache.CacheMeta.class);
-        kryo.register(HashMap.class);
+        kryo.register(ConcurrentHashMap.class);
         kryo.register(TransformerCache.TransformerData.class);
         kryo.register(TransformerCache.TransformerData.CachedTransformation.class);
         kryo.register(byte[].class);
@@ -153,7 +152,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 } else if (!storedMeta.equals(meta)) {
                     CoreTweaks.LOGGER.warn("Transformer cache settings have changed, discarding.");
                 } else {
-                    transformerMap.putAll(returnVerifiedTransformerMap(kryo.readObject(is, HashMap.class)));
+                    transformerMap.putAll(kryo.readObject(is, ConcurrentHashMap.class));
                 }
 
                 Iterator<Entry<String, TransformerData>> it = transformerMap.entrySet()
@@ -194,16 +193,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             .stream()
             .mapToInt(d -> d.transformationMap.size())
             .sum();
-    }
-
-    private static Map<String, TransformerData> returnVerifiedTransformerMap(Map<String, TransformerData> map) {
-        if (map.containsKey(null)) {
-            throw new RuntimeException("Map contains null key");
-        }
-        if (map.containsValue(null)) {
-            throw new RuntimeException("Map contains null value");
-        }
-        return map;
     }
 
     private void persistCache() {
