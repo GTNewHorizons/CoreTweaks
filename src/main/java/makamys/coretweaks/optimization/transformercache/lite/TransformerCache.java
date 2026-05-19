@@ -16,6 +16,7 @@ import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -33,7 +34,6 @@ import com.esotericsoftware.kryo.kryo5.io.Input;
 import com.esotericsoftware.kryo.kryo5.io.Output;
 import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeInput;
 import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeOutput;
-import com.google.common.collect.Sets;
 import com.google.common.hash.Hashing;
 
 import cpw.mods.fml.common.FMLCommonHandler;
@@ -67,46 +67,33 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
     public static final TransformerCache instance = new TransformerCache();
 
-    private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
-    private final Map<String, TransformerData> transformerMap = new ConcurrentHashMap<>();
-    private final CacheMeta meta = new CacheMeta();
+    private static final byte[] NULL_BYTE_ARRAY = new byte[0];
 
     private static final byte MAGIC_0 = 0;
     private static final byte VERSION = 3;
 
-    private static final File DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "transformerCache.dat");
-    private static final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache");
-    private static final File DAT_ERRORED = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache.errored");
-    private static final File TRANSFORMERCACHE_PROFILER_CSV = Util
-        .childFile(CoreTweaks.OUT_DIR, "transformercache_profiler.csv");
-    private Kryo kryo;
+    private final List<CachedTransformerWrapper> myTransformers = new ArrayList<>();
+    private final Map<String, TransformerData> transformerMap = new ConcurrentHashMap<>();
+    private final CacheMeta meta = new CacheMeta();
 
-    private static final ThreadLocal<Delta> deltaThreadLocal = ThreadLocal.withInitial(Delta::new);
+    private final File DAT_OLD = Util.childFile(CoreTweaks.CACHE_DIR, "transformerCache.dat");
+    private final File DAT = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache");
+    private final File DAT_ERRORED = Util.childFile(CoreTweaks.CACHE_DIR, "classTransformerLite.cache.errored");
+    private final File CACHE_PROFILER_CSV = Util.childFile(CoreTweaks.OUT_DIR, "transformercache_profiler.csv");
+    private final Kryo kryo = new Kryo();
 
-    private static final byte[] NULL_BYTE_ARRAY = new byte[0];
-
-    private Set<String> transformersToCache = new HashSet<>();
+    private final Set<String> transformersToCache = new HashSet<>();
 
     private volatile boolean savedAndCleared = false;
 
-    private static class HashMemo {
-
-        byte[] data;
-        int value;
-    }
-
-    private static final ThreadLocal<HashMemo> memoizedHash = ThreadLocal.withInitial(HashMemo::new);
+    private TransformerCache() {}
 
     public void init(boolean late) {
-
-        transformersToCache = Sets.newHashSet(Config.transformersToCache.get());
-
+        Collections.addAll(transformersToCache, Config.transformersToCache.get());
         // We get a ClassCircularityError if we don't add these
         Launch.classLoader.addTransformerExclusion("makamys.coretweaks.util.InMemoryGDiffPatcher");
         Launch.classLoader.addTransformerExclusion("makamys.coretweaks.util.FastByteBufferSeekableSource");
-
         loadData();
-
         TransformerProxyManager.instance.addAdditionListener(this, !late);
     }
 
@@ -127,7 +114,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     private void loadData() {
         long t0 = System.nanoTime();
 
-        kryo = new Kryo();
         kryo.register(TransformerCache.CacheMeta.class);
         kryo.register(ConcurrentHashMap.class);
         kryo.register(TransformerCache.TransformerData.class);
@@ -160,7 +146,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                     if (!Arrays.asList(Config.transformersToCache.get())
                         .contains(e.getKey())) {
                         CoreTweaks.LOGGER
-                            .info("Dropping " + e.getKey() + " from cache because we don't care about it anymore.");
+                            .info("Dropping {} from cache because we don't care about it anymore.", e.getKey());
                         it.remove();
                     }
                 }
@@ -240,7 +226,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             persistCache();
             transformerMap.clear();
             myTransformers.clear();
-            memoizedHash.remove();
             savedAndCleared = true;
         }
         LOGGER.info("Lite transformer cache saved and cleared from memory");
@@ -305,7 +290,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     }
 
     private void saveProfilingResults() throws IOException {
-        try (FileWriter fw = new FileWriter(TRANSFORMERCACHE_PROFILER_CSV)) {
+        try (FileWriter fw = new FileWriter(CACHE_PROFILER_CSV)) {
             fw.write("transformer,runs,misses\n");
             for (CachedTransformerWrapper transformer : myTransformers) {
                 final String name = transformer.transformerName;
@@ -371,13 +356,21 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         return calculateHash(data, nullSafeLength(data));
     }
 
+    private static final ThreadLocal<HashMemo> memoizedHash = ThreadLocal.withInitial(HashMemo::new);
+
+    private static class HashMemo {
+
+        byte[] data;
+        int value;
+    }
+
     @SuppressWarnings("UnstableApiUsage")
     private static int calculateHash(byte[] data, int len) {
-        HashMemo memo = memoizedHash.get();
+        final HashMemo memo = memoizedHash.get();
         if (data == memo.data) {
             return memo.value;
         }
-        int hash = data == null ? -1
+        final int hash = data == null ? -1
             : Hashing.adler32()
                 .hashBytes(data, 0, len)
                 .asInt();
@@ -406,6 +399,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             this.transformerClassName = transformerClassName;
         }
 
+        @SuppressWarnings("unused")
         public TransformerData() {}
 
         public static class CachedTransformation {
@@ -422,6 +416,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             byte[] diff;
             int lastAccessed;
 
+            @SuppressWarnings("unused")
             public CachedTransformation() {}
 
             public boolean isValid() {
@@ -439,6 +434,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 }
                 this.lastAccessed = now();
             }
+
+            private static final ThreadLocal<Delta> deltaThreadLocal = ThreadLocal.withInitial(Delta::new);
 
             private static byte[] generateDiff(byte[] source, int sourceLen, byte[] target, String name) {
                 if (source == null || !TransformerCache.instance.meta.enableDiffs) {
@@ -479,15 +476,14 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 try {
                     InMemoryGDiffPatcher.patch(source, diff, newClass);
                 } catch (Exception e) {
-                    LOGGER.warn("Failed to apply cached diff for " + targetClassName + ", discarding entry");
+                    LOGGER.warn("Failed to apply cached diff for {}, discarding entry", targetClassName);
                     return null;
                 }
                 int actualHash = Hashing.adler32()
                     .hashBytes(newClass)
                     .asInt();
                 if (actualHash != postHash) {
-                    LOGGER
-                        .warn("Hash mismatch after applying cached diff for " + targetClassName + ", discarding entry");
+                    LOGGER.warn("Hash mismatch after applying cached diff for {}, discarding entry", targetClassName);
                     return null;
                 }
                 return newClass;
