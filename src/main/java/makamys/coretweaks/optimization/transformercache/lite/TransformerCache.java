@@ -15,13 +15,10 @@ import java.io.IOException;
 import java.nio.ByteBuffer;
 import java.nio.channels.ClosedByInterruptException;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
-import java.util.Map.Entry;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -139,17 +136,15 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                     transformerMap.putAll(kryo.readObject(is, ConcurrentHashMap.class));
                 }
 
-                Iterator<Entry<String, TransformerData>> it = transformerMap.entrySet()
-                    .iterator();
-                while (it.hasNext()) {
-                    Entry<String, TransformerData> e = it.next();
-                    if (!Arrays.asList(Config.transformersToCache.get())
-                        .contains(e.getKey())) {
-                        CoreTweaks.LOGGER
-                            .info("Dropping {} from cache because we don't care about it anymore.", e.getKey());
-                        it.remove();
-                    }
-                }
+                transformerMap.entrySet()
+                    .removeIf(e -> {
+                        if (!transformersToCache.contains(e.getKey())) {
+                            CoreTweaks.LOGGER
+                                .info("Dropping {} from cache because we don't care about it anymore.", e.getKey());
+                            return true;
+                        }
+                        return false;
+                    });
             } catch (IOException e) {
                 e.printStackTrace();
             } catch (Exception e) {
