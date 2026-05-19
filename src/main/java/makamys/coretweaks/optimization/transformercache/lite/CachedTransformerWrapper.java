@@ -13,9 +13,9 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
     private static final byte[] NULL_BYTE_ARRAY = new byte[0];
 
     private final TransformerData data;
-    public final String transformerName;
-    public int runs = 0;
-    public int misses = 0;
+    private final String transformerName;
+    private int runs = 0;
+    private int misses = 0;
 
     public CachedTransformerWrapper(TransformerData data, String transformerName) {
         this.data = data;
@@ -70,5 +70,9 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
 
     private static byte[] fromNullableByteArray(byte[] array) {
         return array == NULL_BYTE_ARRAY ? null : array;
+    }
+
+    public String getProfileString() {
+        return transformerName + "," + runs + "," + misses;
     }
 }

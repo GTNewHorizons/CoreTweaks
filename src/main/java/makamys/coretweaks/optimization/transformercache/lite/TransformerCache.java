@@ -286,10 +286,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         try (FileWriter fw = new FileWriter(CACHE_PROFILER_CSV)) {
             fw.write("transformer,runs,misses\n");
             for (CachedTransformerWrapper transformer : myTransformers) {
-                final String name = transformer.transformerName;
-                final int runs = transformer.runs;
-                final int misses = transformer.misses;
-                fw.write(name + "," + runs + "," + misses + "\n");
+                fw.write(transformer.getProfileString() + "\n");
             }
         }
     }
