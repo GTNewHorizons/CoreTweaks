@@ -170,25 +170,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             .sum();
     }
 
-    private void persistCache() {
-        if (savedAndCleared) {
-            return;
-        }
-        if (CachedTransformation.diffErrors > 0) {
-            logger().warn(
-                "{} entries have errored. Please report this if it keeps happening!",
-                CachedTransformation.diffErrors);
-        }
-        try {
-            final long l = System.currentTimeMillis();
-            saveTransformerCache();
-            saveProfilingResults();
-            logger().info("Saved transformer cache in {}ms", (System.currentTimeMillis() - l));
-        } catch (IOException e) {
-            logger().error("Error saving lite transformer cache", e);
-        }
-    }
-
     private int clientTicks;
 
     @SideOnly(Side.CLIENT)
@@ -229,6 +210,25 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
     @Override
     public void onShutdown() {
         persistCache();
+    }
+
+    private void persistCache() {
+        if (savedAndCleared) {
+            return;
+        }
+        if (CachedTransformation.diffErrors > 0) {
+            logger().warn(
+                "{} entries have errored. Please report this if it keeps happening!",
+                CachedTransformation.diffErrors);
+        }
+        try {
+            final long l = System.currentTimeMillis();
+            saveTransformerCache();
+            saveProfilingResults();
+            logger().info("Saved transformer cache in {}ms", (System.currentTimeMillis() - l));
+        } catch (IOException e) {
+            logger().error("Error saving lite transformer cache", e);
+        }
     }
 
     private void saveTransformerCache() throws IOException {
