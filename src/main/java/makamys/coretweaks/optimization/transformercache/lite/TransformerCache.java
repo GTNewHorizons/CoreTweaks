@@ -293,12 +293,8 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         }
     }
 
-    public static int nullSafeLength(byte[] array) {
+    private static int nullSafeLength(byte[] array) {
         return array == null ? -1 : array.length;
-    }
-
-    public static int calculateHash(byte[] data) {
-        return calculateHash(data, nullSafeLength(data));
     }
 
     private static final ThreadLocal<HashMemo> memoizedHash = ThreadLocal.withInitial(HashMemo::new);
@@ -307,6 +303,10 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
 
         byte[] data;
         int value;
+    }
+
+    private static int calculateHash(byte[] data) {
+        return calculateHash(data, nullSafeLength(data));
     }
 
     @SuppressWarnings("UnstableApiUsage")
