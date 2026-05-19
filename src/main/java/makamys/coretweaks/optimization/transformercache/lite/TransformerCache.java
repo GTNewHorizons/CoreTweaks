@@ -102,8 +102,6 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         transformersToCache = Sets.newHashSet(Config.transformersToCache.get());
 
         // We get a ClassCircularityError if we don't add these
-        Launch.classLoader
-            .addTransformerExclusion("makamys.coretweaks.optimization.transformercache.lite.TransformerCache");
         Launch.classLoader.addTransformerExclusion("makamys.coretweaks.util.InMemoryGDiffPatcher");
         Launch.classLoader.addTransformerExclusion("makamys.coretweaks.util.FastByteBufferSeekableSource");
 
