@@ -368,10 +368,14 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 this.preHash = calculateHash(basicClass, basicClass.length);
                 this.postLength = nullSafeLength(transformedBytes);
                 this.postHash = calculateHash(transformedBytes, this.postLength);
-                if (preHash != postHash) {
+                if (isDiff()) {
                     diff = generateDiff(basicClass, this.preLength, transformedBytes, targetClassName);
                 }
                 this.updateAccessTime();
+            }
+
+            public boolean isDiff() {
+                return preHash != postHash;
             }
 
             public boolean isValid() {
@@ -389,7 +393,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
             }
 
             @SuppressWarnings("UnstableApiUsage")
-            public byte[] getNewClass(byte[] source) {
+            public byte[] getTransformedBytes(byte[] source) {
                 if (source == null || !TransformerCache.instance.meta.enableDiffs) {
                     return diff;
                 }

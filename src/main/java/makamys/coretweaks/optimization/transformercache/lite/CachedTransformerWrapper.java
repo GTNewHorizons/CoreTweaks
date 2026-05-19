@@ -36,15 +36,15 @@ public class CachedTransformerWrapper implements ITransformerWrapper {
         CachedTransformation cached = this.data.transformationMap.get(transformedName);
         if (cached != null && cached.basicClassMatches(basicClass)) {
             cached.updateAccessTime();
-            if (cached.preHash == cached.postHash) {
+            if (!cached.isDiff()) {
                 return basicClass;
             }
-            byte[] result = cached.getNewClass(basicClass);
-            if (result == null) {
+            byte[] transformedBytes = cached.getTransformedBytes(basicClass);
+            if (transformedBytes == null) {
                 this.data.transformationMap.remove(transformedName);
                 return null;
             }
-            return result;
+            return transformedBytes;
         }
         return null;
     }
