@@ -119,7 +119,7 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
                 .getCanonicalName())) {
             CachedTransformerWrapper proxy = new CachedTransformerWrapper(transformer);
             myTransformers.add(proxy);
-            return new CachedTransformerWrapper(transformer);
+            return proxy;
         } else {
             return null;
         }
