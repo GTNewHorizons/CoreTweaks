@@ -264,7 +264,7 @@ public class JarDiscovererCache implements IModEventListener {
 
     public static class PooledStringSerializer extends ImmutableSerializer<String> {
 
-        private final Map<String, String> pool = new HashMap<>();
+        private final Map<String, String> pool = new HashMap<>(1024);
 
         public PooledStringSerializer() {
             setAcceptsNull(true);
