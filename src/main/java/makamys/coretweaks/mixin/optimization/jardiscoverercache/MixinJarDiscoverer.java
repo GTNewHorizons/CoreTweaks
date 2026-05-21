@@ -6,16 +6,16 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.List;
-import java.util.jar.JarFile;
 import java.util.zip.ZipEntry;
 
-import net.minecraft.network.play.INetHandlerPlayClient;
-
 import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.Unique;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.Redirect;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+
+import com.llamalad7.mixinextras.sugar.Local;
 
 import cpw.mods.fml.common.ModContainer;
 import cpw.mods.fml.common.ModContainerFactory;
@@ -27,50 +27,31 @@ import makamys.coretweaks.optimization.JarDiscovererCache;
 import makamys.coretweaks.optimization.JarDiscovererCache.CachedModInfo;
 
 @Mixin(value = JarDiscoverer.class, remap = false)
-abstract class MixinJarDiscoverer implements INetHandlerPlayClient {
+public abstract class MixinJarDiscoverer {
 
-    private ZipEntry lastZipEntry;
-
-    String lastHash;
-    CachedModInfo lastCMI;
+    @Unique
+    private CachedModInfo crtw$lastCMI;
 
     /** Load the saved result if the jar's path and modification date haven't changed. */
     @Inject(method = "discover", at = @At("HEAD"))
-    public void preDiscover(ModCandidate candidate, ASMDataTable table,
+    private void preDiscover(ModCandidate candidate, ASMDataTable table,
         CallbackInfoReturnable<List<ModContainer>> cir) {
-        String hash = null;
         File file = candidate.getModContainer();
-        hash = file.getPath() + "@" + file.lastModified();
-
-        lastHash = hash;
-        lastCMI = JarDiscovererCache.instance.getCachedModInfo(lastHash);
-
-        LOGGER.debug("preDiscover " + candidate.getModContainer() + "(hash " + lastHash + ")");
-    }
-
-    /** Store ZipEntry reference for later. */
-    @Redirect(
-        method = "discover",
-        at = @At(
-            value = "INVOKE",
-            target = "Ljava/util/jar/JarFile;getInputStream(Ljava/util/zip/ZipEntry;)Ljava/io/InputStream;"))
-    public InputStream redirectGetInputStream(JarFile jf, ZipEntry ze) throws IOException {
-        lastZipEntry = ze;
-        return jf.getInputStream(ze);
+        String lastHash = file.getPath() + "@" + file.lastModified();
+        crtw$lastCMI = JarDiscovererCache.instance.getCachedModInfo(lastHash);
+        LOGGER.debug("preDiscover {}(hash {})", candidate.getModContainer(), lastHash);
     }
 
     /** Try to load cached ASMModParser instead of creating a new one. */
     @Redirect(method = "discover", at = @At(value = "NEW", target = "cpw/mods/fml/common/discovery/asm/ASMModParser"))
-    public ASMModParser redirectNewASMModParser(InputStream stream, ModCandidate candidate, ASMDataTable table)
+    private ASMModParser redirectNewASMModParser(InputStream stream, @Local(name = "ze") ZipEntry ze)
         throws IOException {
-        ASMModParser parser = lastCMI.getCachedParser(lastZipEntry);
+        ASMModParser parser = crtw$lastCMI.getCachedParser(ze);
         if (parser == null) {
-            try {
+            try (stream) {
                 parser = new ASMModParser(stream);
-            } finally {
-                stream.close();
             }
-            lastCMI.putParser(lastZipEntry, parser);
+            crtw$lastCMI.putParser(ze, parser);
         }
         return parser;
     }
@@ -81,14 +62,14 @@ abstract class MixinJarDiscoverer implements INetHandlerPlayClient {
         at = @At(
             value = "INVOKE",
             target = "Lcpw/mods/fml/common/ModContainerFactory;build(Lcpw/mods/fml/common/discovery/asm/ASMModParser;Ljava/io/File;Lcpw/mods/fml/common/discovery/ModCandidate;)Lcpw/mods/fml/common/ModContainer;"))
-    public ModContainer redirectBuild(ModContainerFactory factory, ASMModParser modParser, File modSource,
-        ModCandidate container, ModCandidate candidate, ASMDataTable table) {
-        int isModClass = lastCMI.getCachedIsModClass(lastZipEntry);
+    private ModContainer redirectBuild(ModContainerFactory factory, ASMModParser modParser, File modSource,
+        ModCandidate container, @Local(name = "ze") ZipEntry ze) {
+        int isModClass = crtw$lastCMI.getCachedIsModClass(ze);
         ModContainer mc = null;
         if (isModClass != 0) {
             mc = factory.build(modParser, modSource, container);
             if (isModClass == -1) {
-                lastCMI.putIsModClass(lastZipEntry, mc != null);
+                crtw$lastCMI.putIsModClass(ze, mc != null);
             }
         }
         return mc;

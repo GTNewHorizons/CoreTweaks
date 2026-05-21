@@ -152,31 +152,26 @@ public class JarDiscovererCache implements IModEventListener {
 
     public void finish() {
         if (!cache.isEmpty()) {
-            new Thread(new Runnable() {
-
-                @Override
-                public void run() {
-                    try {
-                        if (!DAT.exists()) {
-                            DAT.getParentFile()
-                                .mkdirs();
-                            DAT.createNewFile();
-                        }
-                        cache.entrySet()
-                            .removeIf(e -> (epoch - e.getValue().lastAccessed) > Config.jarDiscovererCacheMaxAge);
-                        try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
-                            kryo.writeObject(output, MAGIC_0);
-                            kryo.writeObject(output, VERSION);
-                            kryo.writeObject(output, epoch);
-                            kryo.writeObject(output, cache);
-                        }
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
+            new Thread(() -> {
+                try {
+                    if (!DAT.exists()) {
+                        DAT.getParentFile()
+                            .mkdirs();
+                        DAT.createNewFile();
                     }
-                    cache = null;
+                    cache.entrySet()
+                        .removeIf(e -> (epoch - e.getValue().lastAccessed) > Config.jarDiscovererCacheMaxAge);
+                    try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
+                        kryo.writeObject(output, MAGIC_0);
+                        kryo.writeObject(output, VERSION);
+                        kryo.writeObject(output, epoch);
+                        kryo.writeObject(output, cache);
+                    }
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
                 }
-
+                cache = null;
             }, "CoreTweaks JarDiscovererCache save thread").start();
         }
     }
