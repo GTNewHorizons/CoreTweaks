@@ -119,10 +119,10 @@ public class JarDiscovererCache implements IModEventListener {
             }
             long t1 = System.nanoTime();
             LOGGER
-                .debug("Loaded jar discoverer cache with {} entries in {}s", cache.size(), (t1 - t0) / 1_000_000_000.0);
+                .info("Loaded jar discoverer cache with {} entries in {}s", cache.size(), (t1 - t0) / 1_000_000_000.0);
         } else {
             long t1 = System.nanoTime();
-            LOGGER.debug("Created new jar discoverer cache in {}s", (t1 - t0) / 1_000_000_000.0);
+            LOGGER.info("Created new jar discoverer cache in {}s", (t1 - t0) / 1_000_000_000.0);
         }
 
         // free memory of our string pool
