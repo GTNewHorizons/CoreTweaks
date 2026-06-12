@@ -71,7 +71,6 @@ public class CoreTweaks {
         // Exclude transformation to reduce class load time
         // Note: the shadow plugin automatically relocates these strings in the built jar!
         Launch.classLoader.addTransformerExclusion("com.esotericsoftware.kryo.kryo5.");
-        Launch.classLoader.addTransformerExclusion("net.sf.cglib.");
     }
 
     /**
