@@ -39,6 +39,5 @@ dependencies {
     compileOnly("org.projectlombok:lombok:1.18.42")
     annotationProcessor("org.projectlombok:lombok:1.18.42")
 
-    shadowImplementation("com.github.makamys:MCLib:aa4acec") { exclude group: "codechicken" }
     shadowImplementation("com.esotericsoftware.kryo:kryo5:5.5.0")
 }

@@ -23,7 +23,6 @@ import makamys.coretweaks.optimization.ClientChunkMapTicker;
 import makamys.coretweaks.optimization.JarDiscovererCache;
 import makamys.coretweaks.optimization.transformercache.lite.TransformerCache;
 import makamys.coretweaks.tweak.LoadLastWorldButton;
-import makamys.mclib.core.MCLib;
 
 @Mod(modid = CoreTweaks.MODID, version = CoreTweaks.VERSION)
 public class CoreTweaksMod {
@@ -32,8 +31,6 @@ public class CoreTweaksMod {
 
     @EventHandler
     public void onConstruction(FMLConstructionEvent event) {
-        MCLib.init();
-
         Config.reload();
 
         Runtime.getRuntime()
