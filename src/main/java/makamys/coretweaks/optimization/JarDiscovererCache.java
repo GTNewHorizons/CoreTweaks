@@ -12,6 +12,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.zip.ZipEntry;
 
 import org.objectweb.asm.Type;
@@ -21,6 +22,8 @@ import com.esotericsoftware.kryo.kryo5.Serializer;
 import com.esotericsoftware.kryo.kryo5.io.Input;
 import com.esotericsoftware.kryo.kryo5.io.Output;
 import com.esotericsoftware.kryo.kryo5.objenesis.strategy.StdInstantiatorStrategy;
+import com.esotericsoftware.kryo.kryo5.serializers.DefaultSerializers;
+import com.esotericsoftware.kryo.kryo5.serializers.ImmutableSerializer;
 import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeInput;
 import com.esotericsoftware.kryo.kryo5.unsafe.UnsafeOutput;
 import com.esotericsoftware.kryo.kryo5.util.DefaultInstantiatorStrategy;
@@ -84,9 +87,11 @@ public class JarDiscovererCache implements IModEventListener {
         kryo.register(java.util.LinkedList.class);
         kryo.register(classForNameOrException("cpw.mods.fml.common.discovery.asm.ASMModParser$AnnotationType"));
         kryo.register(java.util.ArrayList.class);
+        // use our pooled string reader
+        kryo.register(String.class, new PooledStringSerializer());
 
         if (DAT_OLD.exists() && !DAT.exists()) {
-            LOGGER.info("Migrating jar discoverer cache: " + DAT_OLD + " -> " + DAT);
+            LOGGER.info("Migrating jar discoverer cache: {} -> {}", DAT_OLD, DAT);
             DAT_OLD.renameTo(DAT);
         }
 
@@ -105,25 +110,23 @@ public class JarDiscovererCache implements IModEventListener {
                 }
             } catch (Exception e) {
                 CoreTweaks.LOGGER.error(
-                    "There was an error reading the jar discoverer cache. A new one will be created. The previous one has been saved as "
-                        + DAT_ERRORED.getName()
-                        + " for inspection.");
+                    "There was an error reading the jar discoverer cache. A new one will be created. The previous one has been saved as {} for inspection.",
+                    DAT_ERRORED.getName());
                 DAT.renameTo(DAT_ERRORED);
                 e.printStackTrace();
                 cache.clear();
                 epoch = 0;
             }
             long t1 = System.nanoTime();
-            LOGGER.debug(
-                "Loaded jar discoverer cache with " + cache.size()
-                    + " entries in "
-                    + (t1 - t0) / 1_000_000_000.0
-                    + "s");
+            LOGGER
+                .info("Loaded jar discoverer cache with {} entries in {}s", cache.size(), (t1 - t0) / 1_000_000_000.0);
         } else {
             long t1 = System.nanoTime();
-            LOGGER.debug("Created new jar discoverer cache in " + (t1 - t0) / 1_000_000_000.0 + "s");
+            LOGGER.info("Created new jar discoverer cache in {}s", (t1 - t0) / 1_000_000_000.0);
         }
 
+        // free memory of our string pool
+        kryo.register(String.class, new DefaultSerializers.StringSerializer());
         hasLoaded = true;
     }
 
@@ -152,31 +155,26 @@ public class JarDiscovererCache implements IModEventListener {
 
     public void finish() {
         if (!cache.isEmpty()) {
-            new Thread(new Runnable() {
-
-                @Override
-                public void run() {
-                    try {
-                        if (!DAT.exists()) {
-                            DAT.getParentFile()
-                                .mkdirs();
-                            DAT.createNewFile();
-                        }
-                        cache.entrySet()
-                            .removeIf(e -> (epoch - e.getValue().lastAccessed) > Config.jarDiscovererCacheMaxAge);
-                        try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
-                            kryo.writeObject(output, MAGIC_0);
-                            kryo.writeObject(output, VERSION);
-                            kryo.writeObject(output, epoch);
-                            kryo.writeObject(output, cache);
-                        }
-                    } catch (IOException e) {
-                        // TODO Auto-generated catch block
-                        e.printStackTrace();
+            new Thread(() -> {
+                try {
+                    if (!DAT.exists()) {
+                        DAT.getParentFile()
+                            .mkdirs();
+                        DAT.createNewFile();
                     }
-                    cache = null;
+                    cache.entrySet()
+                        .removeIf(e -> (epoch - e.getValue().lastAccessed) > Config.jarDiscovererCacheMaxAge);
+                    try (Output output = new UnsafeOutput(new BufferedOutputStream(new FileOutputStream(DAT)))) {
+                        kryo.writeObject(output, MAGIC_0);
+                        kryo.writeObject(output, VERSION);
+                        kryo.writeObject(output, epoch);
+                        kryo.writeObject(output, cache);
+                    }
+                } catch (IOException e) {
+                    // TODO Auto-generated catch block
+                    e.printStackTrace();
                 }
-
+                cache = null;
             }, "CoreTweaks JarDiscovererCache save thread").start();
         }
     }
@@ -245,35 +243,40 @@ public class JarDiscovererCache implements IModEventListener {
 
         @Override
         public Type read(Kryo kryo, Input input, Class<? extends Type> type) {
-            int sort = input.readByte();
-            String buf = sort >= Type.ARRAY ? input.readString() : null;
-            switch (sort) {
-                case Type.VOID:
-                    return Type.VOID_TYPE;
-                case Type.BOOLEAN:
-                    return Type.BOOLEAN_TYPE;
-                case Type.CHAR:
-                    return Type.CHAR_TYPE;
-                case Type.BYTE:
-                    return Type.BYTE_TYPE;
-                case Type.SHORT:
-                    return Type.SHORT_TYPE;
-                case Type.INT:
-                    return Type.INT_TYPE;
-                case Type.FLOAT:
-                    return Type.FLOAT_TYPE;
-                case Type.LONG:
-                    return Type.LONG_TYPE;
-                case Type.DOUBLE:
-                    return Type.DOUBLE_TYPE;
-                case Type.ARRAY:
-                case Type.OBJECT:
-                    return Type.getObjectType(buf);
-                case Type.METHOD:
-                    return Type.getMethodType(buf);
-                default:
-                    return null;
-            }
+            final int sort = input.readByte();
+            final String buf = sort >= Type.ARRAY ? input.readString() : null;
+            return switch (sort) {
+                case Type.VOID -> Type.VOID_TYPE;
+                case Type.BOOLEAN -> Type.BOOLEAN_TYPE;
+                case Type.CHAR -> Type.CHAR_TYPE;
+                case Type.BYTE -> Type.BYTE_TYPE;
+                case Type.SHORT -> Type.SHORT_TYPE;
+                case Type.INT -> Type.INT_TYPE;
+                case Type.FLOAT -> Type.FLOAT_TYPE;
+                case Type.LONG -> Type.LONG_TYPE;
+                case Type.DOUBLE -> Type.DOUBLE_TYPE;
+                case Type.ARRAY, Type.OBJECT -> Type.getObjectType(buf);
+                case Type.METHOD -> Type.getMethodType(buf);
+                default -> null;
+            };
+        }
+    }
+
+    public static class PooledStringSerializer extends ImmutableSerializer<String> {
+
+        private final Map<String, String> pool = new HashMap<>(1024);
+
+        public PooledStringSerializer() {
+            setAcceptsNull(true);
+        }
+
+        public void write(Kryo kryo, Output output, String object) {
+            output.writeString(object);
+        }
+
+        public String read(Kryo kryo, Input input, Class<? extends String> type) {
+            final String s = input.readString();
+            return s == null ? null : pool.computeIfAbsent(s, Function.identity());
         }
     }
 }
