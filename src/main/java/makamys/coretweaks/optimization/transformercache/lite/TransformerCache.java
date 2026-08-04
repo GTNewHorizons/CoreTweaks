@@ -201,11 +201,13 @@ public class TransformerCache implements IModEventListener, ITransformerWrapperP
         }
         stoppedTransformer = true;
         myTransformers.forEach(CachedTransformerWrapper::stopTransformer);
-        saveCache();
-        transformerMap.values()
-            .forEach(t -> t.transformationMap = Collections.emptyMap());
-        transformerMap.clear();
-        LOGGER.info("Lite transformer cache saved and cleared from memory");
+        new Thread(() -> {
+            saveCache();
+            transformerMap.values()
+                .forEach(t -> t.transformationMap = Collections.emptyMap());
+            transformerMap.clear();
+            LOGGER.info("Lite transformer cache saved and cleared from memory");
+        }, "CoreTweaks TransformerCache save thread").start();
     }
 
     @Override
