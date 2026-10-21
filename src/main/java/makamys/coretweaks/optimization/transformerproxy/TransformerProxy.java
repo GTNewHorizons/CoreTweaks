@@ -19,7 +19,8 @@ public class TransformerProxy implements IClassTransformer, IWrapper<IClassTrans
     protected IClassTransformer original;
 
     private final List<ITransformerWrapper> wrappers = new ArrayList<>();
-    private int nextWrapper;
+    // classes can be transformed on several threads at once, so each thread walks the chain with its own cursor
+    private final ThreadLocal<int[]> nextWrapper = ThreadLocal.withInitial(() -> new int[1]);
 
     public void addWrapper(ITransformerWrapper wrapper) {
         wrappers.add(0, wrapper);
@@ -31,7 +32,7 @@ public class TransformerProxy implements IClassTransformer, IWrapper<IClassTrans
 
     @Override
     public byte[] transform(String name, String transformedName, byte[] basicClass) {
-        nextWrapper = -1;
+        nextWrapper.get()[0] = -1;
         return invokeNextHandler(name, transformedName, basicClass);
     }
 
@@ -47,16 +48,17 @@ public class TransformerProxy implements IClassTransformer, IWrapper<IClassTrans
     }
 
     public byte[] invokeNextHandler(String name, String transformedName, byte[] basicClass) {
-        nextWrapper++;
+        int[] cursor = nextWrapper.get();
+        int index = ++cursor[0];
         try {
-            if (nextWrapper == wrappers.size()) {
+            if (index == wrappers.size()) {
                 return original.transform(name, transformedName, basicClass);
             } else {
-                return wrappers.get(nextWrapper)
+                return wrappers.get(index)
                     .wrapTransform(name, transformedName, basicClass, this);
             }
         } finally {
-            nextWrapper--;
+            cursor[0]--;
         }
     }
 
