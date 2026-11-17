@@ -32,7 +32,7 @@ abstract class MixinMinecraft {
 
     @Shadow
     @Final
-    private static Logger logger = LogManager.getLogger();
+    private static Logger logger;
 
     @Shadow
     abstract void startGame() throws LWJGLException;
