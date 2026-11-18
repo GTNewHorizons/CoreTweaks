@@ -7,9 +7,9 @@ import net.minecraft.crash.CrashReport;
 import net.minecraft.util.MinecraftError;
 import net.minecraft.util.ReportedException;
 
-import org.apache.logging.log4j.LogManager;
 import org.apache.logging.log4j.Logger;
 import org.lwjgl.LWJGLException;
+import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.Overwrite;
 import org.spongepowered.asm.mixin.Shadow;
@@ -31,7 +31,8 @@ abstract class MixinMinecraft {
     private CrashReport crashReporter;
 
     @Shadow
-    private static Logger logger = LogManager.getLogger();
+    @Final
+    private static Logger logger;
 
     @Shadow
     abstract void startGame() throws LWJGLException;
